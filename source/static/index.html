@@ -1,0 +1,3196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件分享 + 聊天</title>
+<style>
+:root { --top: 52px; --ctl: 40px; --gap: 12px; --line: #e5e7eb; --text: #1f2937; --muted: #6b7280; --primary: #1e40af; --bg: #f1f4f9; --side: #f8fafc; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif; font-size: 14px; color: var(--text); background: var(--bg); overflow: hidden; }
+.hidden { display: none !important; }
+
+/* ---------- 通用控件：统一高度 40px、圆角 6px、同行间距 12px ---------- */
+button { height: var(--ctl); padding: 0 16px; border: 0; border-radius: 6px; background: var(--primary); color: #fff; font: inherit; cursor: pointer; white-space: nowrap; }
+button:hover { background: #1d4ed8; }
+button:disabled { background: #9ca3af; cursor: not-allowed; }
+button.secondary, button.ghost { background: #e5e7eb; color: var(--text); }
+button.secondary:hover, button.ghost:hover { background: #d1d5db; }
+button.danger { background: #dc2626; }
+button.danger:hover { background: #b91c1c; }
+button.small { height: var(--ctl); padding: 0 12px; }
+input:not([type=checkbox]), select { height: var(--ctl); padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; background: #fff; min-width: 0; color: var(--text); }
+input[readonly] { background: #f9fafb; color: var(--muted); }
+input:disabled, textarea:disabled { background: #f3f4f6; color: #9ca3af; }
+input:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
+textarea { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; line-height: 22px; color: var(--text); background: #fff; }
+textarea.wide { width: 100%; min-height: 80px; resize: vertical; }
+.row { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; margin-bottom: var(--gap); }
+.row > .grow { flex: 1; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--gap); max-width: 360px; }
+.field label { font-size: 13px; color: #374151; }
+.msg { font-size: 13px; margin-top: 8px; }
+.msg:empty { display: none; }
+.msg.err { color: #dc2626; }
+.msg.ok { color: #15803d; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; line-height: 1.6; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); padding: 16px; margin-bottom: var(--gap); }
+h2 { font-size: 16px; margin: 0 0 var(--gap); }
+h2.sub { margin-top: 20px; }
+.empty { color: #9ca3af; padding: 30px 0; text-align: center; }
+.notice { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.7; margin-bottom: var(--gap); }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+th { color: #6b7280; font-weight: 600; font-size: 13px; }
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.actions .row { margin: 0; }
+.ip-input { width: 160px; }
+.alias-input { width: 140px; }
+.tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; margin-right: 4px; line-height: 1.6; }
+.tag.muted { background: #fee2e2; color: #b91c1c; }
+.tag.pending { background: #ffedd5; color: #9a3412; }
+.tag.staff { background: #dbeafe; color: #1e40af; }
+.muted-tag { color: #dc2626; font-weight: 600; }
+.alias { color: #9ca3af; font-size: 12px; margin-left: 4px; font-weight: normal; }
+.ext { display: inline-block; font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #eef2ff; color: #3730a3; font-family: Consolas, monospace; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #dc2626; box-shadow: 0 0 0 2px #fff; display: inline-block; }
+
+/* ---------- 顶栏：贴齐上、左、右边缘，与标签同一行 ---------- */
+.app { height: 100%; display: flex; flex-direction: column; }
+.topbar { height: var(--top); flex-shrink: 0; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: stretch; justify-content: space-between; padding-right: 12px; }
+.tabs { display: flex; align-items: stretch; min-width: 0; overflow-x: auto; }
+.tab { position: relative; height: 100%; padding: 0 16px; border: 0; border-radius: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; white-space: nowrap; }
+.tab:hover { background: none; color: var(--text); }
+.tab.active { color: var(--text); font-weight: 700; box-shadow: inset 0 -2px 0 var(--text); }
+.tab .dot { position: absolute; top: 12px; right: 4px; }
+.who { display: flex; align-items: center; gap: var(--gap); white-space: nowrap; padding-left: 12px; }
+.who span { color: var(--muted); }
+
+/* ---------- 页面：可上下滚动，不贴边 ---------- */
+.page { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 20px; }
+.page.chat { display: flex; padding: 0; overflow: hidden; }
+
+/* ---------- 登录 / 注册 ---------- */
+.auth-screen { position: fixed; top: 0; right: 0; bottom: 0; left: 0; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
+.auth-card { width: 100%; max-width: 400px; padding: 24px; margin: auto; }
+.auth-card .tabs { height: var(--ctl); margin-bottom: var(--gap); border-bottom: 1px solid var(--line); }
+.auth-card .tab { height: var(--ctl); }
+.auth-card form button[type=submit] { width: 100%; }
+.auth-card .field { max-width: none; }
+
+/* ---------- 聊天页：侧栏贴左、上、下，可滚动 ---------- */
+.side { width: 220px; flex-shrink: 0; background: var(--side); border-right: 1px solid var(--line); overflow-y: auto; padding: 8px 0; }
+.side .sec { font-size: 12px; color: var(--muted); padding: 10px 14px 4px; }
+.side .item { position: relative; height: var(--ctl); display: flex; align-items: center; padding: 0 28px 0 14px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side .item:hover { background: #eef2f7; }
+.side .item.active { background: #e0e7ff; font-weight: 600; }
+.side .item .dot { position: absolute; top: 12px; right: 10px; }
+.chatmain { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; }
+.chat-title { height: var(--ctl); line-height: var(--ctl); padding: 0 16px; font-weight: 600; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+#chatBox { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; background: #fafafa; display: flex; flex-direction: column; gap: 10px; }
+.chat-msg { padding: 0 16px; color: #dc2626; flex-shrink: 0; }
+.chat-msg:empty { display: none; }
+/* 气泡宽度随内容变化：fit-content，最大 70%，超长文本自动换行 */
+.bubble { align-self: flex-start; width: fit-content; max-width: 70%; display: flex; flex-direction: column; }
+.bubble .meta { display: flex; justify-content: flex-start; width: 0; min-width: 100%; white-space: nowrap; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.bubble.me { align-self: flex-end; }
+.bubble.me .meta { justify-content: flex-end; }
+.bubble .text { background: #fff; border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; text-align: left; }
+.bubble.me .text { background: #dbeafe; border-color: #bfdbfe; }
+.bubble.clickable .text { cursor: pointer; }
+.bubble.clickable .text:hover { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(147, 197, 253, .35); }
+.bubble.mention .text { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245, 158, 11, .25); }
+.at { color: #1d4ed8; font-weight: 600; }
+/* 输入栏：贴底、横跨聊天列；输入框 1–4 行自动增高，超出后滚动 */
+.inputbar { flex-shrink: 0; display: flex; align-items: stretch; gap: var(--gap); padding: var(--gap) 16px; background: #fff; border-top: 1px solid var(--line); }
+.inwrap { position: relative; flex: 1; min-width: 0; display: flex; }
+#chatInput { flex: 1; width: 100%; min-height: var(--ctl); height: var(--ctl); padding: 8px 44px 8px 12px; resize: none; overflow-y: hidden; line-height: 22px; }
+.expand-btn { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; padding: 0; background: #e5e7eb; color: var(--text); font-size: 15px; line-height: 28px; text-align: center; }
+.expand-btn:hover { background: #d1d5db; }
+.expand-btn:disabled { background: #f3f4f6; color: #9ca3af; }
+#sendBtn { min-width: 88px; height: auto; }
+/* 放大模式：覆盖除顶栏外的全部区域，Enter 换行 */
+.inputbar.expanded { position: fixed; top: var(--top); left: 0; right: 0; bottom: 0; z-index: 20; padding: 16px 20px; border-top: 0; box-shadow: 0 -4px 16px rgba(0, 0, 0, .08); }
+.inputbar.expanded #chatInput { height: 100%; overflow-y: auto; }
+.inputbar.expanded .expand-btn { top: 10px; right: 10px; }
+.inputbar.expanded .mention-pop { top: 12px; bottom: auto; }
+/* 放大模式：消息类型与发送按钮叠在输入框右下角；输入框内边距为按钮留出位置 */
+.inputbar.expanded .inmain { position: static; }
+.inputbar.expanded .inwrap { flex: 1; min-height: 0; }
+.inputbar.expanded #chatInput { height: 100%; overflow-y: auto; padding: 12px 200px 60px 12px; }
+.inputbar.expanded .kind-sel { position: absolute; right: 126px; bottom: 26px; z-index: 3; height: var(--ctl); align-self: auto; }
+.inputbar.expanded #sendBtn { position: absolute; right: 30px; bottom: 26px; z-index: 3; height: var(--ctl); }
+.mention-pop { position: absolute; left: 0; bottom: calc(100% + 6px); min-width: 200px; max-height: 220px; overflow-y: auto; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, .12); z-index: 5; }
+.mention-pop div { height: var(--ctl); display: flex; align-items: center; padding: 0 12px; cursor: pointer; }
+.mention-pop div.sel, .mention-pop div:hover { background: #dbeafe; }
+.login-field { position: relative; }
+.login-suggest { position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; max-height: 220px; overflow-y: auto; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, .12); z-index: 6; }
+.login-suggest div { height: var(--ctl); display: flex; align-items: center; padding: 0 12px; cursor: pointer; }
+.login-suggest div:hover { background: #dbeafe; }
+
+/* ---------- 文件预览 ---------- */
+tr.file-row { cursor: pointer; }
+tr.file-row:hover td { background: #f8fafc; }
+tr.file-row.selected td { background: #ecfdf5; }
+.preview { margin-top: var(--gap); border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fafafa; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.preview img, .preview video { max-width: 100%; max-height: 66vh; border-radius: 6px; }
+.preview audio { width: 100%; max-width: 520px; }
+.preview .media-actions { display: flex; justify-content: center; margin-top: 8px; }
+.preview .cap { font-size: 13px; color: #4b5563; word-break: break-all; }
+.preview.text { align-items: stretch; justify-content: flex-start; }
+.text-preview { width: 100%; height: 60vh; min-height: 260px; resize: vertical; padding: 10px 12px; font-family: Consolas, "Courier New", "Microsoft YaHei", monospace; font-size: 13px; line-height: 1.5; background: #fff; white-space: pre; overflow: auto; tab-size: 4; }
+.text-preview:focus { border-color: #94a3b8; box-shadow: none; }
+.text-hint { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+/* ---------- 公告 ---------- */
+.ann { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: var(--gap); background: #fff; }
+.ann .head { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; }
+.ann .body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+
+/* ---------- 第 4 轮：HTML 消息 / 引用 / 消息菜单 / 弹窗 / 居中 ---------- */
+.auth-card .tabs { display: flex; }
+.auth-card .tab { flex: 1; text-align: center; }
+.page.center { display: flex; flex-direction: column; }
+.page.center > .card { margin: auto; width: 100%; }
+.htmllink { color: #2563eb; font-weight: 600; }
+.bubble.clickable { cursor: pointer; }
+.quote { margin-top: 4px; padding: 3px 8px; background: #f3f4f6; border-left: 3px solid #9ca3af; border-radius: 4px; color: #6b7280; font-size: 12px; line-height: 1.6; white-space: nowrap; overflow: hidden; max-width: 100%; }
+.bubble.me .quote { background: #eff6ff; }
+.kind-sel { width: 76px; flex-shrink: 0; align-self: flex-start; }
+.inmain { flex: 1; min-width: 0; display: flex; flex-direction: column-reverse; }   /* 引用条排在输入框下方（DOM 中仍在前） */
+.inwrap { position: relative; flex: 1; min-width: 0; display: flex; }
+.quotebar { display: flex; align-items: center; gap: var(--gap); padding: 4px 8px 4px 10px; margin-top: 6px; background: #f3f4f6; border-left: 3px solid #9ca3af; border-radius: 4px; color: #6b7280; font-size: 13px; min-height: 30px; }
+.quotebar .qt { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.quotebar button { height: 24px; padding: 0 8px; }
+.inputbar.expanded .inmain { flex: 1; min-height: 0; }
+.inputbar.expanded .quotebar { margin-right: 216px; }   /* 放大模式下为右下角的按钮留出位置 */
+.inputbar.expanded .inwrap { min-height: 0; }
+
+/* ---------- 第 11 轮：撤回 / 黑名单 / 小群 / 历史分页 ---------- */
+.chat-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.more-btn { height: 28px; min-width: 36px; padding: 0 8px; font-size: 16px; line-height: 1; }
+.side .sec.sec-row { display: flex; align-items: center; justify-content: space-between; padding-right: 8px; }
+button.plus-btn { width: 24px; height: 24px; min-width: 24px; padding: 0; font-size: 16px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+.tag.blocked { background: #e5e7eb; color: #374151; }
+.menu div.danger-item { color: #dc2626; font-weight: 600; }
+.recalled { color: var(--muted); font-style: italic; }
+.bubble .text.recalled-text, .bubble.me .text.recalled-text { background: #f9fafb; border-style: dashed; border-color: #d1d5db; }
+.earlier-bar { display: flex; justify-content: center; flex-shrink: 0; }
+.modal-panel.narrow { width: min(440px, 100%); height: auto; max-height: 80vh; }
+.modal-panel.search-panel { width: min(640px, 100%); height: min(72vh, 100%); }
+.search-bar { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; }
+.search-bar input { flex: 1; min-width: 0; }
+.search-global { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); white-space: nowrap; flex-shrink: 0; cursor: pointer; user-select: none; }
+.chat-title .title-tools { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.hit { padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.hit:hover { background: #f1f5f9; }
+.hit .hit-meta { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.hit .hit-text { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.hit mark { background: #fde68a; color: inherit; border-radius: 2px; padding: 0 1px; }
+.bubble.flash { box-shadow: 0 0 0 3px #facc15; transition: box-shadow .3s; }
+.modal-bar .panel-close { margin-left: auto; }
+.panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 16px; }
+.panel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.panel-form { display: flex; gap: 8px; padding: 16px; }
+.panel-form input { flex: 1; min-width: 0; }
+.panel-body .hint { padding: 12px 0; }
+.menu { position: fixed; z-index: 30; min-width: 120px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, .12); padding: 4px 0; }
+.menu div { height: var(--ctl); line-height: var(--ctl); padding: 0 14px; cursor: pointer; white-space: nowrap; }
+.menu div:hover { background: #dbeafe; }
+.modal { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-panel { width: min(960px, 100%); height: min(80vh, 100%); background: #fff; border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); display: flex; flex-direction: column; overflow: hidden; }
+.modal-bar { flex-shrink: 0; display: flex; justify-content: flex-start; align-items: center; height: 52px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+.modal-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
+.html-frame { display: block; width: 100%; height: 50vh; min-height: 240px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.side .item.unread-top { font-weight: 600; }
+/* 会话列表：第二行为灰色的最新消息预览；未读数为红色数字徽标（大群只显示红点，不显示数字） */
+.side .item.chat-item { height: auto; min-height: var(--ctl); display: block; padding: 6px 28px 6px 14px; }
+.side .item.chat-item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side .item .pv { font-size: 12px; font-weight: 400; color: #9ca3af; line-height: 18px; min-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side .item .dot.badge { top: 9px; right: 8px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box; background: #dc2626; color: #fff; font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; box-shadow: none; }
+/* ---------- 第 5 轮：提示浮窗 / 确认框 / HTML 全屏层 / 用户概览 / 间距 ---------- */
+.tabs { gap: 6px; overflow-y: hidden; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }   /* 窄屏可横向滑动，但不显示滚动条 */
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 2000; max-width: 80vw; padding: 10px 18px; border-radius: 8px; color: #fff; background: #16a34a; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; transform: translate(-50%, 24px); opacity: 0; pointer-events: none; transition: transform .3s ease, opacity .3s ease; }
+.toast.show { transform: translate(-50%, 0); opacity: 1; }
+.toast.err { background: #dc2626; }
+.confirm-mask { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1500; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.confirm-box { width: min(420px, 100%); background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+.confirm-box p { margin: 0 0 16px; line-height: 1.7; }
+.confirm-box .btns { display: flex; justify-content: flex-end; gap: 6px; }
+.htmlview { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; background: #fff; display: flex; flex-direction: column; }
+.htmlview .bar { flex-shrink: 0; height: 52px; display: flex; align-items: center; padding: 0 12px; background: #f8fafc; border-bottom: 1px solid var(--line); }
+.htmlview iframe { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
+table.users th, table.users td { white-space: nowrap; }
+table.users th[data-key] { cursor: pointer; user-select: none; }
+table.users th[data-key]:hover { color: var(--text); }
+table.users .arrow { margin-left: 4px; font-size: 11px; color: var(--primary); }
+table.users .more-col { width: 64px; text-align: center; }
+table.users .more { height: var(--ctl); width: 40px; padding: 0; background: #e5e7eb; color: var(--text); font-size: 18px; line-height: 1; }
+table.users .more:hover { background: #d1d5db; }
+.udinfo > div { display: flex; justify-content: space-between; align-items: center; min-height: var(--ctl); border-bottom: 1px solid #f0f0f0; gap: 12px; }
+.udinfo > div > span:first-child { color: var(--muted); }
+.owner-tag { color: #2563eb; font-weight: 600; margin-left: 6px; font-size: 12px; }
+.bubble .text.invite-text { color: #2563eb; font-weight: 600; background: #eff6ff; border-color: #93c5fd; }
+.bubble.clickable .text.invite-text { cursor: pointer; }
+.panel-row.clickable { cursor: pointer; }
+.panel-row .chev { flex: none; color: var(--muted); }
+.panel-row.clickable:hover .chev { color: var(--primary); }
+.panel-row.clickable:hover { background: #f3f4f6; }
+</style>
+</head>
+<body>
+
+<div id="authView" class="auth-screen">
+  <div class="card auth-card">
+    <div class="tabs">
+      <button id="tabLogin" class="tab active" onclick="showAuthTab('login')">登录</button>
+      <button id="tabRegister" class="tab" onclick="showAuthTab('register')">注册账号</button>
+    </div>
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <div class="field login-field"><label>用户名</label><input id="loginUsername" name="username" autocomplete="username" required><div class="login-suggest hidden" id="loginSuggest"></div></div>
+      <div class="field"><label>密码</label><input name="password" type="password" autocomplete="current-password" required></div>
+      <button type="submit">登录</button>
+      <div class="msg" id="loginMsg"></div>
+    </form>
+    <form id="registerForm" class="hidden" onsubmit="doRegister(event)">
+      <div class="field"><label>用户名</label><input name="username" autocomplete="username" required></div>
+      <div class="field"><label>密码</label><input name="password" type="password" autocomplete="new-password" required></div>
+      <div class="field"><label>确认密码</label><input name="password2" type="password" autocomplete="new-password" required></div>
+      <button type="submit">注册并登录</button>
+      <div class="msg" id="registerMsg"></div>
+      <p class="hint">新注册账号默认被禁言（私聊和所有群聊均不能发言），需管理员处理后才能发言。</p>
+    </form>
+  </div>
+</div>
+
+<div id="appView" class="app hidden">
+  <header class="topbar">
+    <nav class="tabs">
+      <button class="tab" id="navChat" onclick="showPage('chat')">聊天</button>
+      <button class="tab" id="navFiles" onclick="showPage('files')">文件预览</button>
+      <button class="tab" id="navAnnounce" onclick="showPage('announce')">公告</button>
+      <button class="tab" id="navAccount" onclick="showPage('account')">账号管理</button>
+      <button class="tab hidden" id="navAdmin" onclick="showPage('admin')">管理<span class="dot hidden" id="pendingDot"></span></button>
+    </nav>
+    <div class="who">
+      <span id="whoami"></span>
+    </div>
+  </header>
+
+  <section id="pageChat" class="page chat">
+    <aside class="side" id="sideList"></aside>
+    <div class="chatmain">
+      <div class="chat-title"><span id="chatTitle">大群聊天</span><span class="title-tools"><button class="ghost small" id="chatSearchBtn" type="button" title="搜索聊天记录" onclick="openSearch()">搜索</button><button class="ghost small more-btn hidden" id="chatMoreBtn" type="button" title="更多" onclick="openChatMenu(event)">⋯</button></span></div>
+      <div id="chatBox"></div>
+      <div class="msg chat-msg" id="chatMsg"></div>
+      <div class="inputbar" id="inputBar">
+        <select id="msgKind" class="kind-sel" title="消息类型">
+          <option value="text">文本</option>
+          <option value="html">HTML</option>
+        </select>
+        <div class="inmain">
+          <div class="quotebar hidden" id="quoteBar"><span class="qt" id="quoteText"></span><button class="ghost small" id="quoteCancel" type="button">×</button></div>
+          <div class="inwrap">
+            <div class="mention-pop hidden" id="mentionPop"></div>
+            <textarea id="chatInput" rows="1" maxlength="30000" placeholder="输入消息，Enter 发送，Shift+Enter 换行；群聊输入 @ 可提及成员"></textarea>
+            <button class="expand-btn" id="expandBtn" type="button" title="放大输入框">⤢</button>
+          </div>
+        </div>
+        <button id="sendBtn" type="button" onclick="sendChat()">发送</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="pageFiles" class="page hidden">
+    <div class="notice">文件目录位于程序所在目录的 files 文件夹。图片、视频和音频可在下方直接预览，文本文件可在页面中编辑（仅本页有效，不会保存到服务器）；其他类型文件不支持查看或下载。</div>
+    <div class="row bar"><button class="ghost" onclick="loadFiles()">刷新列表</button></div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>文件名</th><th>大小</th><th>修改时间</th></tr></thead>
+          <tbody id="fileBody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="fileEmpty">目录中还没有文件</div>
+    </div>
+    <div class="preview" id="previewBox"><span class="hint">点击列表中的文件进行预览</span></div>
+    <div class="msg" id="fileMsg"></div>
+  </section>
+
+  <section id="pageAnnounce" class="page hidden">
+    <form id="announceForm" class="card ann-form hidden" onsubmit="event.preventDefault(); postAnnouncement();">
+      <h3>发布公告</h3>
+      <textarea id="announceInput" class="wide" maxlength="50000" placeholder="公告内容（纯文本最多 2000 字；HTML 最多 50000 字）"></textarea>
+      <div class="row" style="margin-top: var(--gap); justify-content: flex-end;">
+        <select id="announceKind" title="内容类型"><option value="text">纯文本</option><option value="html">HTML</option></select>
+        <button type="submit">发布</button>
+      </div>
+    </form>
+    <div id="annList"></div>
+    <div class="msg" id="annMsg"></div>
+  </section>
+
+  <section id="pageAccount" class="page center hidden">
+    <div class="card" style="max-width: 420px; width: 100%;">
+      <h2>修改密码</h2>
+      <form id="pwForm" onsubmit="doChangePassword(event)">
+        <div class="field"><label>原密码</label><input name="old_password" type="password" autocomplete="current-password" required></div>
+        <div class="field"><label>新密码</label><input name="new_password" type="password" autocomplete="new-password" required></div>
+        <div class="field"><label>确认新密码</label><input name="new_password2" type="password" autocomplete="new-password" required></div>
+        <button type="submit">保存新密码</button>
+        <div class="msg" id="pwMsg"></div>
+      </form>
+      <p class="hint hidden" id="adminPwHint"></p>
+    </div>
+
+    <div class="card" style="max-width: 420px; width: 100%;">
+      <h2>修改用户名</h2>
+      <p class="hint" style="margin: 0 0 var(--gap);">当前用户名：<span id="curUsername"></span>。修改后，历史消息中显示的用户名也会同步更新。</p>
+      <form id="unForm" onsubmit="doChangeUsername(event)">
+        <div class="field"><label>新用户名（2-32 位，可包含字母、数字、下划线、点或中划线）</label><input id="newUsername" maxlength="32" autocomplete="off" required></div>
+        <button type="submit" id="unSubmit">保存用户名</button>
+      </form>
+      <p class="hint hidden" id="unAdminHint">主管理员账号的用户名不可修改。</p>
+    </div>
+
+    <div class="card" style="max-width: 420px; width: 100%;">
+      <h2>注销账号</h2>
+      <p class="hint" style="margin: 0 0 var(--gap);">注销后该账号将无法登录且不可恢复，历史消息会保留。你作为群主的小群会转交给群内其他成员；若群内没有其他成员，该小群将被解散。</p>
+      <div class="row"><button class="danger" id="deleteSelfBtn" type="button" onclick="doDeleteAccount()">注销账号</button></div>
+      <p class="hint hidden" id="deleteAdminHint">主管理员账号不能注销。</p>
+    </div>
+
+    <div class="card" style="max-width: 420px; width: 100%;">
+      <h2>退出登录</h2>
+      <div class="row"><button class="ghost" id="logoutBtn" type="button" onclick="logout()">退出登录</button></div>
+    </div>
+  </section>
+
+  <section id="pageAdmin" class="page hidden">
+    <div class="card hidden" id="portCard">
+      <h2>服务端口</h2>
+      <p class="hint" style="margin: 0 0 var(--gap);">留空则使用 80 端口（本机访问 <code>http://localhost/</code>）。保存后服务会自动切换到新端口，页面随之跳转，登录状态保留。使用 80 端口时，域名解析列表中的域名可以直接打开聊天页面。仅主管理员可修改。</p>
+      <div class="row bar">
+        <span>当前端口：<b id="portNow">-</b></span>
+        <input id="portInput" type="text" inputmode="numeric" maxlength="5" placeholder="留空 = 80" style="width: 160px;">
+        <button onclick="savePort()">保存并重启服务</button>
+      </div>
+      <div class="msg" id="portMsg"></div>
+    </div>
+
+    <div class="card" id="hostsCard">
+      <h2>域名解析列表</h2>
+      <p class="hint" style="margin: 0 0 var(--gap);">列表中的域名会写入系统 hosts 文件（程序运行期间有效），仅主管理员可维护。</p>
+      <div class="row bar">
+        <input id="hostDomainInput" class="grow" type="text" placeholder="域名，例如 demo.local">
+        <input id="hostIpInput" type="text" placeholder="IP，默认 127.0.0.1" style="width: 180px;">
+        <button onclick="addHostDomain()">添加</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>域名</th><th>解析到 IP</th><th>操作</th></tr></thead>
+          <tbody id="hostBody"></tbody>
+        </table>
+      </div>
+      <div class="msg" id="hostListMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>用户管理</h2>
+      <p class="hint" style="margin: 0 0 var(--gap);">点击表头可排序（再次点击反向排序）。点击每行最右侧的 ⋯ 打开用户详情，在详情中可修改别名、禁言、设为副管理员或删除账号。</p>
+      <div class="table-wrap">
+        <table class="users">
+          <thead><tr id="userHead">
+            <th data-key="username">用户名<span class="arrow"></span></th>
+            <th data-key="role">身份<span class="arrow"></span></th>
+            <th data-key="status">状态<span class="arrow"></span></th>
+            <th data-key="created">注册时间<span class="arrow"></span></th>
+            <th data-key="alias">别名<span class="arrow"></span></th>
+            <th class="more-col"></th>
+          </tr></thead>
+          <tbody id="userBody"></tbody>
+        </table>
+      </div>
+      <div class="msg" id="adminUserMsg"></div>
+    </div>
+  </section>
+
+  <section id="pageUserdetail" class="page center hidden">
+    <div class="card" style="width: 100%; max-width: 520px;">
+      <div class="row"><button class="ghost" id="udBack" type="button">← 返回用户管理</button></div>
+      <h2 id="udTitle"></h2>
+      <div class="udinfo" id="udInfo"></div>
+      <div class="field" style="max-width: none; margin-top: var(--gap);">
+        <label for="udAlias">别名（最多 20 字，留空则清除）</label>
+        <div class="row" style="margin: 0;"><input id="udAlias" class="grow" maxlength="20" autocomplete="off"><button class="secondary" id="udAliasSave" type="button">保存别名</button></div>
+      </div>
+      <div class="field" style="max-width: none; margin-top: var(--gap);">
+        <label for="udGroupLimit">可创建小群数（非负整数，默认 1，0 表示不允许创建；主/副管理员不受限制；已有的小群不会被解散）</label>
+        <div class="row" style="margin: 0;"><input id="udGroupLimit" class="grow" type="number" min="0" step="1" autocomplete="off"><button class="secondary" id="udGroupLimitSave" type="button">保存数量</button></div>
+      </div>
+      <div class="field" id="udGroupsField" style="max-width: none; margin-top: var(--gap);">
+        <label>该用户创建的小群（主管理员可解散，但无法查看群内消息）</label>
+        <div id="udGroups"></div>
+      </div>
+      <div class="row" id="udActions" style="margin-top: 6px;"></div>
+    </div>
+  </section>
+</div>
+
+<div class="menu hidden" id="msgMenu"></div>
+<div class="menu hidden" id="chatMenu"></div>
+<div class="modal hidden" id="searchModal">
+  <div class="modal-panel search-panel">
+    <div class="modal-bar"><div class="search-bar"><input id="searchInput" maxlength="50" placeholder="搜索当前会话的消息，回车搜索" autocomplete="off"><label class="search-global" title="勾选后搜索全部大群、小群和私聊"><input type="checkbox" id="searchGlobal"> 搜索全局</label><button class="secondary small" id="searchGo" type="button">搜索</button></div><button class="ghost small panel-close" id="searchClose" type="button">关闭</button></div>
+    <div class="panel-body" id="searchBody"></div>
+  </div>
+</div>
+<div class="modal hidden" id="panelModal">
+  <div class="modal-panel narrow">
+    <div class="modal-bar"><strong id="panelTitle"></strong><button class="ghost small panel-close" id="panelClose" type="button">关闭</button></div>
+    <div class="panel-body" id="panelBody"></div>
+  </div>
+</div>
+<div class="htmlview hidden" id="htmlModal">
+  <div class="bar"><button class="ghost" id="htmlBack" type="button">← 返回</button></div>
+  <iframe id="htmlFrame" sandbox="allow-scripts allow-popups" title="HTML 消息"></iframe>
+</div>
+
+<script>
+
+const PAGES = ['chat', 'files', 'announce', 'account', 'admin'];
+let me = null;
+let pollTimer = null;
+let pollTick = 0;
+let currentPage = 'chat';
+let users = [];                    // 所有用户（侧边栏、@ 提示、别名显示）
+let chatMode = { type: 'group' };  // 或 { type: 'private', user: 用户ID }
+let groupCache = [];               // 大群最近消息（切换视图时重新渲染）
+let groupLastId = 0;
+let privCache = {};                // 私聊缓存：{ 用户ID: { lastId, msgs } }，切换页面后直接用缓存渲染
+let pendingQuote = null;           // 待发送的引用：{ chat, id, name, kind, content }
+let msgMenuOpts = null;            // 当前消息菜单对应的消息
+let lastOrderKey = '';           // 私聊列表的排序结果（变化时重新渲染侧栏）
+const HTML_SANDBOX = 'allow-scripts allow-popups';
+let mentionState = { items: [], idx: 0, start: -1 };
+let selectedPath = '';
+let groups = [];           // 我参与的小群（侧边栏）
+let groupDetail = null;    // 当前打开的小群详情（成员与禁言状态）
+let groupSynced = false;   // 大群是否已完成首次同步（之后请求带撤回游标）
+let groupRSeq = 0;         // 大群撤回同步游标
+let groupHasMore = false;  // 大群是否还有更早的消息
+const smallCache = {};     // 小群消息缓存：{ 群ID: { lastId, msgs, synced, rseq, hasMore } }
+let panelKind = null;      // 弹窗类型：create / add / kick / mute
+let wasBlocked = false;   // 上一次是否处于大群禁言状态
+
+// ---------- 工具函数
+// 表单字段取值（不使用 form.name 形式的命名属性访问）
+function fieldOf(form, name) { return form.querySelector('[name="' + name + '"]'); }
+function fieldVal(form, name) { return fieldOf(form, name).value; }
+async function api(path, method = 'GET', body = undefined) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    const err = new Error(data.error || ('请求失败（' + res.status + '）'));
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+// 需要持续显示（含操作步骤）的提示保留在页内，其余统一为悬浮提示
+const INLINE_MSG_IDS = ['hostListMsg', 'portMsg'];
+function setMsg(id, text, ok) {
+  if (INLINE_MSG_IDS.includes(id)) {
+    const el = document.getElementById(id);
+    el.textContent = text || '';
+    el.className = 'msg ' + (ok ? 'ok' : 'err');
+    return;
+  }
+  // 悬浮提示：成功为绿色，失败（ok 为假）为红色
+  if (text) toast(text, !!ok);
+}
+
+function fmtSize(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts * 1000);
+  const pad = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// 文本中的 @用户名 高亮（先转义再替换）
+function highlightAt(text) {
+  return escapeHtml(text).replace(/@([\p{L}\p{N}_.\-]{1,32})/gu, '<span class="at">@$1</span>');
+}
+
+const PREVIEW_IMAGE = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
+const PREVIEW_VIDEO = ['.mp4', '.webm', '.ogv', '.mov'];
+const PREVIEW_AUDIO = ['.mp3', '.wav', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac'];
+const PREVIEW_TEXT = ['.txt', '.log', '.md', '.csv', '.tsv', '.json', '.xml', '.html', '.htm', '.css', '.js', '.ts',
+  '.svg', '.ps1', '.bat', '.cmd', '.sh', '.py', '.go', '.java', '.c', '.h', '.cpp', '.hpp', '.cs', '.rs', '.sql',
+  '.yaml', '.yml', '.ini', '.conf', '.cfg', '.toml', '.env'];
+function previewKind(name) {
+  const dot = name.lastIndexOf('.');
+  const ext = dot >= 0 ? name.slice(dot).toLowerCase() : '';
+  if (PREVIEW_IMAGE.includes(ext)) return 'image';
+  if (PREVIEW_VIDEO.includes(ext)) return 'video';
+  if (PREVIEW_AUDIO.includes(ext)) return 'audio';
+  if (PREVIEW_TEXT.includes(ext)) return 'text';
+  return '';
+}
+
+function fileUrl(path) { return '/api/file?path=' + encodeURIComponent(path); }
+
+// 让指定元素进入全屏（标准 API，WebKit 旧接口作为兜底）
+function enterFullscreen(el) {
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!fn) return;
+  try { const p = fn.call(el); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+}
+
+function userById(id) { return users.find(u => u.id === id); }
+function aliasOf(id) {
+  if (me && id === me.id) return me.alias || '';
+  const u = userById(id);
+  return u ? (u.alias || '') : '';
+}
+function nameOf(id) {
+  if (me && id === me.id) return me.username;
+  const u = userById(id);
+  return u ? u.username : '已删除用户';
+}
+function aliasHtml(alias) { return alias ? `<span class="alias">${escapeHtml(alias)}</span>` : ''; }
+
+// ---------- 视图切换
+function showAuthTab(which) {
+  const isLogin = which === 'login';
+  document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+  document.getElementById('registerForm').classList.toggle('hidden', isLogin);
+  document.getElementById('tabLogin').classList.toggle('active', isLogin);
+  document.getElementById('tabRegister').classList.toggle('active', !isLogin);
+}
+
+function cap(p) { return p[0].toUpperCase() + p.slice(1); }
+
+function showPage(name) {
+  currentPage = name;
+  if (name !== 'chat') collapseInput();
+  document.getElementById('pageUserdetail').classList.add('hidden');
+  PAGES.forEach(p => {
+    document.getElementById('page' + cap(p)).classList.toggle('hidden', p !== name);
+    document.getElementById('nav' + cap(p)).classList.toggle('active', p === name);
+  });
+  if (name === 'files') loadFiles();
+  if (name === 'account') renderAccountPage();
+  if (name === 'announce') loadAnnouncements();
+  if (name === 'admin') { loadAdminUsers(); if (me && me.is_admin) { loadHosts(); loadPort(); } }
+  if (name === 'chat') renderChat();
+}
+
+function whoLabel() {
+  if (!me) return '';
+  let role = '';
+  if (me.is_admin) role = '（主管理员）';
+  else if (me.sub_admin) role = '（副管理员）';
+  return '当前用户：' + me.username + (me.alias ? '（' + me.alias + '）' : '') + role;
+}
+
+// 根据 me 更新与角色有关的界面（管理员标签、红点、公告发布框）
+function applyRoleUI() {
+  const staff = !!(me && me.is_staff);
+  document.getElementById('whoami').textContent = whoLabel();
+  document.getElementById('navAdmin').classList.toggle('hidden', !staff);
+  document.getElementById('announceForm').classList.toggle('hidden', !staff);
+  document.getElementById('adminPwHint').classList.toggle('hidden', !(me && me.is_admin));
+  // 域名解析列表仅主管理员可见
+  document.getElementById('hostsCard').classList.toggle('hidden', !(me && me.is_admin));
+  document.getElementById('portCard').classList.toggle('hidden', !(me && me.is_admin));
+  if (!staff) setPendingCount(0);
+  if (!staff && currentPage === 'admin') showPage('chat');
+  // HTML 消息仅主/副管理员可发送：普通用户不显示消息类型选项（只能发送纯文本）
+  const kindSel = document.getElementById('msgKind');
+  kindSel.classList.toggle('hidden', !staff);
+  if (!staff) kindSel.value = 'text';
+}
+
+function enterApp() {
+  rememberUser(me);
+  document.getElementById('authView').classList.add('hidden');
+  document.getElementById('appView').classList.remove('hidden');
+  applyRoleUI();
+  groupCache = []; groupLastId = 0; privCache = {}; pendingQuote = null; chatMode = { type: 'group' };
+  groupSynced = false; groupRSeq = 0; groupHasMore = false; groupDetail = null; groups = []; groupsKey = '';
+  for (const k of Object.keys(smallCache)) delete smallCache[k];
+  hideChatMenu(); closePanel();
+  loadSeen();
+  privLatest = []; chatSum = newChatSum();
+  refreshChatUI();
+  showPage('chat');
+  loadUsers();
+  loadMessages();
+  refreshSummary();
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(tick, 2000);
+}
+
+function leaveApp() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+  me = null;
+  users = [];
+  groupCache = [];
+  privLatest = []; chatSum = newChatSum();
+  seen = newSeen();
+  privCache = {};
+  pendingQuote = null;
+  closeHtmlModal();
+  closeSearch();
+  hideMsgMenu();
+  hideChatMenu();
+  closePanel();
+  groupSynced = false; groupRSeq = 0; groupHasMore = false; groupDetail = null; groups = []; groupsKey = '';
+  for (const k of Object.keys(smallCache)) delete smallCache[k];
+  document.getElementById('chatInput').value = '';
+  document.getElementById('appView').classList.add('hidden');
+  document.getElementById('authView').classList.remove('hidden');
+  document.getElementById('whoami').textContent = '';
+  document.getElementById('chatBox').innerHTML = '';
+  document.getElementById('navAdmin').classList.add('hidden');
+  document.getElementById('adminPwHint').classList.add('hidden');
+  setPendingCount(0);
+  showPage('chat');
+}
+
+async function tick() {
+  if (!me) return;
+  pollTick++;
+  await loadMessages();
+  if (chatMode.type === 'private') await loadPrivate();
+  else if (chatMode.type === 'small') await loadSmall();
+  await refreshSummary();
+  loadGroups();
+  if (pollTick % 5 === 0) {
+    loadUsers();
+    if (chatMode.type === 'small') loadGroupDetail(chatMode.id);
+    if (currentPage === 'announce') loadAnnouncements();
+  }
+  if (me && me.is_staff) loadPendingBadge();
+}
+
+// ---------- 登录界面：用户名下拉（只列出本浏览器登录过的用户）
+const KNOWN_USERS_KEY = 'fsc_known_users';
+
+function loadKnownUsers() {
+  try {
+    const list = JSON.parse(localStorage.getItem(KNOWN_USERS_KEY) || '[]');
+    return Array.isArray(list) ? list.filter(u => u && typeof u.username === 'string') : [];
+  } catch (e) { return []; }
+}
+
+function saveKnownUsers(list) {
+  try { localStorage.setItem(KNOWN_USERS_KEY, JSON.stringify(list.slice(0, 100))); } catch (e) {}
+}
+
+// 登录成功后记住用户名和别名：已存在则更新别名（保持原有位置），否则加到最前
+function rememberUser(u) {
+  if (!u || !u.username) return;
+  const list = loadKnownUsers();
+  const hit = list.find(x => x.username === u.username);
+  if (hit) hit.alias = u.alias || '';
+  else list.unshift({ username: u.username, alias: u.alias || '' });
+  saveKnownUsers(list);
+}
+
+// 只更新已记住用户的别名，不会新增记录
+function updateKnownAlias(username, alias) {
+  const list = loadKnownUsers();
+  const hit = list.find(x => x.username === username);
+  if (!hit || (hit.alias || '') === (alias || '')) return;
+  hit.alias = alias || '';
+  saveKnownUsers(list);
+}
+
+function suggestLoginUsers() {
+  const input = document.getElementById('loginUsername');
+  const pop = document.getElementById('loginSuggest');
+  if (!input || !pop) return;
+  const q = input.value.trim().toLowerCase();
+  // 未输入则列出全部；否则按用户名或别名包含匹配
+  const items = loadKnownUsers().filter(u =>
+    !q || u.username.toLowerCase().includes(q) || (u.alias || '').toLowerCase().includes(q));
+  if (!items.length) { pop.classList.add('hidden'); return; }
+  pop.innerHTML = items.map(u =>
+    `<div data-name="${escapeHtml(u.username)}">${escapeHtml(u.username)}${aliasHtml(u.alias)}</div>`).join('');
+  pop.classList.remove('hidden');
+}
+
+function initLoginSuggest() {
+  const input = document.getElementById('loginUsername');
+  const pop = document.getElementById('loginSuggest');
+  if (!input || !pop) return;
+  input.addEventListener('input', suggestLoginUsers);
+  input.addEventListener('focus', suggestLoginUsers);
+  input.addEventListener('click', suggestLoginUsers);   // 已聚焦时（如按过 Esc）再次点击也能重新打开
+  input.addEventListener('blur', () => pop.classList.add('hidden'));
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') pop.classList.add('hidden'); });
+  // 阻止 mousedown 使输入框失焦，保证点击选项能完成
+  pop.addEventListener('mousedown', e => e.preventDefault());
+  pop.addEventListener('click', e => {
+    const item = e.target.closest('[data-name]');
+    if (!item) return;
+    input.value = item.dataset.name;
+    pop.classList.add('hidden');
+    const pwd = document.querySelector('#loginForm input[name=password]');
+    if (pwd) pwd.focus();
+  });
+}
+document.addEventListener('DOMContentLoaded', initLoginSuggest);
+
+// ---------- 账号
+async function doLogin(e) {
+  e.preventDefault();
+  const f = e.target;
+  setMsg('loginMsg', '');
+  try {
+    const r = await api('/api/login', 'POST', { username: fieldVal(f, 'username'), password: fieldVal(f, 'password') });
+    me = r.user;
+    fieldOf(f, 'password').value = '';
+    enterApp();
+  } catch (err) { setMsg('loginMsg', err.message); }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  const f = e.target;
+  setMsg('registerMsg', '');
+  if (fieldVal(f, 'password') !== fieldVal(f, 'password2')) { setMsg('registerMsg', '两次输入的密码不一致'); return; }
+  try {
+    const r = await api('/api/register', 'POST', { username: fieldVal(f, 'username').trim(), password: fieldVal(f, 'password') });
+    me = r.user;
+    fieldOf(f, 'password').value = ''; fieldOf(f, 'password2').value = '';
+    enterApp();
+  } catch (err) { setMsg('registerMsg', err.message); }
+}
+
+async function logout() {
+  try { await api('/api/logout', 'POST', {}); } catch (e) {}
+  leaveApp();
+  showAuthTab('login');
+}
+
+// 修改密码：字段名与页面输入框的 name 对应（原先名称不一致导致无法提交）
+async function doChangePassword(e) {
+  e.preventDefault();
+  const f = e.target;
+  setMsg('pwMsg', '');
+  try {
+    const oldPw = fieldVal(f, 'old_password');
+    const newPw = fieldVal(f, 'new_password');
+    const newPw2 = fieldVal(f, 'new_password2');
+    if (newPw !== newPw2) { setMsg('pwMsg', '两次输入的新密码不一致'); return; }
+    await api('/api/password', 'POST', { old_password: oldPw, new_password: newPw });
+    f.reset();
+    setMsg('pwMsg', '密码修改成功', true);
+  } catch (err) {
+    if (err.status === 401) { leaveApp(); showAuthTab('login'); return; }
+    setMsg('pwMsg', err.message);
+  }
+}
+
+// 账号管理页：主管理员账号不能修改用户名、不能注销
+function renderAccountPage() {
+  if (!me) return;
+  const admin = !!me.is_admin;
+  document.getElementById('curUsername').textContent = me.username;
+  document.getElementById('newUsername').disabled = admin;
+  document.getElementById('unSubmit').disabled = admin;
+  document.getElementById('unAdminHint').classList.toggle('hidden', !admin);
+  document.getElementById('deleteSelfBtn').disabled = admin;
+  document.getElementById('deleteAdminHint').classList.toggle('hidden', !admin);
+}
+
+async function doChangeUsername(e) {
+  e.preventDefault();
+  if (!me || me.is_admin) return;
+  const input = document.getElementById('newUsername');
+  const name = input.value.trim();
+  if (!name) { toast('请输入新用户名', false); return; }
+  if (name === me.username) { toast('新用户名与当前用户名相同', false); return; }
+  try {
+    const r = await api('/api/account/username', 'POST', { username: name });
+    me.username = r.user.username;
+    rememberUser(me);
+    input.value = '';
+    toast('用户名已修改为「' + me.username + '」');
+    applyRoleUI();
+    renderAccountPage();
+    loadUsers();
+  } catch (err) {
+    if (err.status === 401) { leaveApp(); showAuthTab('login'); return; }
+    toast(err.message, false);
+  }
+}
+
+// 注销账号：二次确认；历史消息保留
+async function doDeleteAccount() {
+  if (!me || me.is_admin) return;
+  if (!(await askConfirm(`确定注销账号「${me.username}」吗？`, '继续'))) return;
+  if (!(await askConfirm('请再次确认：注销后该账号将无法登录，且不可恢复（历史消息会保留）。确定注销吗？', '注销'))) return;
+  try {
+    await api('/api/account/delete', 'POST', {});
+    leaveApp();
+    showAuthTab('login');
+    toast('账号已注销');
+  } catch (err) {
+    if (err.status === 401) { leaveApp(); showAuthTab('login'); return; }
+    toast(err.message, false);
+  }
+}
+
+// ---------- 用户列表 / 角色同步
+async function loadUsers() {
+  if (!me) return;
+  try {
+    const r = await api('/api/users');
+    users = r.users;
+    const self = userById(me.id);
+    if (self) {
+      // 管理员可能在别处修改了我的别名、角色或禁言状态，这里同步
+      me.alias = self.alias;
+      updateKnownAlias(self.username, self.alias);
+      me.is_admin = self.is_admin;
+      me.sub_admin = self.sub_admin;
+      me.is_staff = self.is_admin || self.sub_admin;
+      syncMuted(self.muted, self.big_muted);
+      applyRoleUI();
+    }
+    renderSidebar();
+    refreshChatUI();
+    refreshOpenPanel();
+  } catch (err) { if (err.status === 401) leaveApp(); }
+}
+
+function syncMuted(muted, bigMuted) {
+  if (!me) return;
+  let changed = false;
+  if (typeof muted === 'boolean' && me.muted !== muted) {
+    me.muted = muted;                 // 全局禁言：私聊和所有群聊
+    if (!muted) me.pending = false;   // 解除全局禁言即完成处理
+    changed = true;
+  }
+  if (typeof bigMuted === 'boolean' && !!me.big_muted !== bigMuted) {
+    me.big_muted = bigMuted;          // 大群禁言：只影响大群发言
+    changed = true;
+  }
+  if (changed) applyMuteState();
+}
+
+// ---------- 未读红点（已读位置保存在本浏览器的 localStorage 中，刷新页面后保留）
+let seen = newSeen();
+let privLatest = [];   // 每个私聊对象的最后一条消息：[{user_id, last_id, last_from}]（由 chatSum 派生，用于排序）
+let chatSum = newChatSum();   // 服务端返回的会话摘要：最新消息预览与未读数
+function newChatSum() { return { big: null, private: {}, groups: {} }; }
+
+function newSeen() { return { groupInit: false, group: 0, privInit: false, priv: {}, groups: {} }; }
+function seenKey() { return 'fsc_seen_' + me.id; }
+function loadSeen() {
+  seen = newSeen();
+  try {
+    const s = JSON.parse(localStorage.getItem(seenKey()) || 'null');
+    if (s && typeof s === 'object') {
+      seen.groupInit = !!s.groupInit;
+      seen.group = Number(s.group) || 0;
+      seen.privInit = !!s.privInit;
+      seen.priv = (s.priv && typeof s.priv === 'object') ? s.priv : {};
+      seen.groups = (s.groups && typeof s.groups === 'object') ? s.groups : {};
+    }
+  } catch (e) { seen = newSeen(); }
+}
+function saveSeen() { try { localStorage.setItem(seenKey(), JSON.stringify(seen)); } catch (e) {} }
+
+// 大群：未打开大群时，最后一条消息来自他人且尚未查看，显示红点（任何新消息，不只是 @）
+function bigGroupUnread() {
+  if (!me || chatMode.type === 'group') return false;
+  const last = groupCache[groupCache.length - 1];
+  return !!last && last.user_id !== me.id && last.id > seen.group;
+}
+// 私聊未读数：对方发来的、尚未查看的消息条数（正在查看该会话时为 0）
+function privateUnread(uid) {
+  if (chatMode.type === 'private' && chatMode.user === uid) return 0;
+  const p = chatSum.private[uid];
+  return p ? p.unread : 0;
+}
+function markGroupSeen() {
+  if (groupLastId > seen.group) { seen.group = groupLastId; saveSeen(); }
+}
+// 只在正在查看该私聊时调用
+function markPrivateSeen(uid) {
+  const p = privLatest.find(x => x.user_id === uid);
+  let v = seen.priv[uid] || 0;
+  if (p && p.last_id > v) v = p.last_id;
+  const st = privCache[uid];
+  if (st && st.lastId > v) v = st.lastId;
+  if (v > (seen.priv[uid] || 0)) { seen.priv[uid] = v; saveSeen(); }
+}
+// 向服务端取会话摘要（最新消息预览、未读数）。已读位置保存在本浏览器，随请求一起发送。
+function summaryBody() {
+  const body = { groups: Object.assign({}, seen.groups) };
+  if (seen.privInit) body.priv = Object.assign({}, seen.priv);   // 首次进入不统计私聊未读
+  if (seen.groupInit) body.big = seen.group;                     // 大群已读位置：用于判断是否有人 @ 我
+  return body;
+}
+async function refreshSummary() {
+  if (!me) return;
+  try {
+    const r = await api('/api/chat/summary', 'POST', summaryBody());
+    chatSum = { big: r.big || null, private: r.private || {}, groups: r.groups || {} };
+    privLatest = Object.keys(chatSum.private).map(k => ({
+      user_id: Number(k), last_id: chatSum.private[k].last_id, last_from: chatSum.private[k].last_from,
+    }));
+    if (!seen.privInit) {   // 首次进入：已有的私聊视为已读，只提示之后的新消息
+      privLatest.forEach(p => { seen.priv[p.user_id] = p.last_id; });
+      seen.privInit = true;
+      saveSeen();
+    }
+    if (chatMode.type === 'private') markPrivateSeen(chatMode.user);
+    updateDots();
+    // 最新消息的顺序变化时重新排列私聊列表
+    if (privateOrder().map(u => u.id).join(',') !== lastOrderKey) renderSidebar();
+  } catch (err) { if (err.status === 401) leaveApp(); }
+}
+
+// ---------- 第 11 轮：小群 / 撤回 / 黑名单 / 历史分页（数据与接口见 groups.go、store.go）----------
+
+function smallState(gid) {
+  if (!smallCache[gid]) smallCache[gid] = { lastId: 0, msgs: [], synced: false, rseq: 0, hasMore: false };
+  return smallCache[gid];
+}
+
+function markSmallSeen(gid) {
+  const st = smallCache[gid];
+  if (st && st.lastId > (seen.groups[gid] || 0)) { seen.groups[gid] = st.lastId; saveSeen(); }
+}
+
+// 小群未读数（正在查看的群为 0）
+function groupUnread(gid) {
+  if (chatMode.type === 'small' && chatMode.id === gid) return 0;
+  const p = chatSum.groups[gid];
+  return p ? p.unread : 0;
+}
+
+// 有人 @ 我（或 @所有人）的未读消息：小群 / 大群的红点文字显示为 "@"（服务端按已读位置计算）
+function bigMention() {
+  return chatMode.type !== 'group' && !!chatSum.big && !!chatSum.big.mention;
+}
+function groupMention(gid) {
+  if (chatMode.type === 'small' && chatMode.id === gid) return false;
+  const p = chatSum.groups[gid];
+  return !!p && !!p.mention;
+}
+
+// 红点 / 数字徽标：私聊和小群显示未读条数（超过 99 显示 99+）；有人 @ 我时显示 "@"
+function setBadge(el, n, mention) {
+  const on = n > 0 || !!mention;
+  el.classList.toggle('hidden', !on);
+  el.classList.toggle('badge', on);
+  el.textContent = mention ? '@' : (n > 99 ? '99+' : (n > 0 ? String(n) : ''));
+}
+
+// 侧边栏第二行：最新消息预览（我发的加“我：”，群聊加发送人）
+function previewText(p, isGroup) {
+  if (!me || !p || !p.last_id) return '';
+  if (p.last_from === me.id) return '我：' + p.preview;
+  return (isGroup && p.last_name ? p.last_name + '：' : '') + p.preview;
+}
+function updatePreviews() {
+  document.querySelectorAll('#sideList [data-pv-big]').forEach(el => { el.textContent = previewText(chatSum.big, true); });
+  document.querySelectorAll('#sideList [data-pv-gid]').forEach(el => {
+    el.textContent = previewText(chatSum.groups[el.dataset.pvGid], true);
+  });
+  document.querySelectorAll('#sideList [data-pv-uid]').forEach(el => {
+    el.textContent = previewText(chatSum.private[el.dataset.pvUid], false);
+  });
+}
+
+// 大群 / 私聊 / 小群的未读提示与最新消息预览
+function updateDots() {
+  const g = document.querySelector('#sideList [data-dot="group"]');
+  if (g) {   // 大群：有人 @ 我时显示 "@" 徽标；否则有新消息只显示普通红点
+    const m = bigMention();
+    g.classList.toggle('hidden', !(m || bigGroupUnread()));
+    g.classList.toggle('badge', m);
+    g.textContent = m ? '@' : '';
+  }
+  document.querySelectorAll('#sideList [data-dot-uid]').forEach(el => {
+    setBadge(el, privateUnread(Number(el.dataset.dotUid)), false);
+  });
+  document.querySelectorAll('#sideList [data-dot-gid]').forEach(el => {
+    const gid = Number(el.dataset.dotGid);
+    setBadge(el, groupUnread(gid), groupMention(gid));
+  });
+  updatePreviews();
+}
+
+let groupsKey = '';
+async function loadGroups() {
+  if (!me) return;
+  try {
+    const r = await api('/api/groups');
+    groups = r.groups;
+    let changed = false;
+    groups.forEach(g => {   // 首次看到的小群视为已读（不提示历史消息）
+      if (!(g.id in seen.groups)) { seen.groups[g.id] = g.last_id; changed = true; }
+    });
+    if (changed) saveSeen();
+    if (chatMode.type === 'small' && !groups.some(g => g.id === chatMode.id)) {
+      toast('该小群已解散或你已不在群中', false);
+      openGroup();
+    }
+    refreshGroupOrder();
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+  }
+}
+
+async function loadGroupDetail(gid) {
+  if (!me) return;
+  try {
+    const r = await api('/api/groups/detail?id=' + gid);
+    if (chatMode.type === 'small' && chatMode.id === gid) {
+      groupDetail = r.group;
+      refreshChatUI();
+      refreshOpenPanel();
+    }
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+    else if (err.status === 404 && chatMode.type === 'small' && chatMode.id === gid) {
+      toast('该小群已解散或你已不在群中', false);
+      openGroup();
+      loadGroups();
+    }
+  }
+}
+
+function openRenamePanel() {
+  if (!groupDetail || groupDetail.id !== chatMode.id || !groupDetail.is_owner) return;
+  panelKind = 'rename';
+  showPanel('重命名小群', `<div class="panel-form"><input id="renameGroupName" maxlength="20" autocomplete="off" value="${escapeHtml(groupDetail.name)}"><button id="renameGroupOk" class="secondary" type="button">保存</button></div>`);
+  const input = document.getElementById('renameGroupName');
+  input.focus();
+  input.select();
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitRename(); } });
+}
+
+async function submitRename() {
+  const input = document.getElementById('renameGroupName');
+  if (!input || !groupDetail) return;
+  const gid = groupDetail.id;
+  const name = input.value.trim();
+  if (!name) { toast('请输入群名称', false); return; }
+  try {
+    await api('/api/groups/rename', 'POST', { group_id: gid, name });
+    closePanel();
+    toast('已重命名');
+    await loadGroupDetail(gid);
+    loadGroups();
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+// 群主解散小群：群及全部消息被删除，成员无法再访问
+async function dissolveGroup() {
+  if (!groupDetail || groupDetail.id !== chatMode.id || !groupDetail.is_owner) return;
+  const gid = groupDetail.id;
+  const name = groupDetail.name;
+  const ok = await askConfirm(`解散小群「${name}」？解散后所有成员都将无法再看到该群及其全部消息，且无法恢复。`, '解散');
+  if (!ok) return;
+  try {
+    await api('/api/groups/dissolve', 'POST', { group_id: gid });
+    toast('已解散小群');
+    openGroup();
+    await loadGroups();
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+function openCreateGroup() {
+  if (!me) return;
+  if (me.pending) { toast('待处理用户暂不能创建小群，请等待管理员处理', false); return; }
+  panelKind = 'create';
+  showPanel('新建小群', '<div class="panel-form"><input id="newGroupName" maxlength="20" placeholder="群名称（1-20 个字）" autocomplete="off"><button id="newGroupOk" class="secondary" type="button">创建</button></div>');
+  const input = document.getElementById('newGroupName');
+  input.focus();
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitCreateGroup(); } });
+}
+
+async function submitCreateGroup() {
+  const input = document.getElementById('newGroupName');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) { toast('请输入群名称', false); return; }
+  try {
+    const r = await api('/api/groups', 'POST', { name });
+    closePanel();
+    toast('已创建小群');
+    await loadGroups();
+    openSmall(r.group.id);
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+function showPanel(title, html) {
+  document.getElementById('panelTitle').textContent = title;
+  document.getElementById('panelBody').innerHTML = html;
+  document.getElementById('panelModal').classList.remove('hidden');
+}
+
+function closePanel() {
+  panelKind = null;
+  document.getElementById('panelModal').classList.add('hidden');
+  document.getElementById('panelBody').innerHTML = '';
+}
+
+function isPanelOpen() {
+  return !document.getElementById('panelModal').classList.contains('hidden');
+}
+
+// ---------- 成员列表 / 成员详情 / 拉入（邀请）面板 ----------
+let memberUid = null;   // 成员详情当前显示的用户
+
+function openMemberList() {
+  if (!me || !isGroupChat()) return;
+  if (chatMode.type === 'small' && (!groupDetail || groupDetail.id !== chatMode.id)) return;
+  renderMemberList();
+}
+
+// 成员列表：大群为全部非待处理用户；小群为本群成员，群主置顶并带蓝色“群主”后缀（仅在此列表）
+// 禁言标志（同一用户只显示一个）：全局禁言优先；否则显示该列表对应范围的禁言（大群禁言 / 本群禁言）
+function muteLabel(globalMuted, scopedMuted, scopedLabel) {
+  if (globalMuted) return '全局禁言';
+  if (scopedMuted) return scopedLabel;
+  return '';
+}
+
+function memberRows() {
+  if (chatMode.type === 'group') {
+    return users.filter(u => !u.pending)
+      .map(u => ({ id: u.id, username: u.username, alias: u.alias, owner: false, globalMuted: !!u.muted, bigMuted: !!u.big_muted }))
+      .sort((a, b) => nameCollate(a.username, b.username));
+  }
+  return groupDetail.members.map(m => ({ id: m.id, username: m.username, alias: m.alias, owner: !!m.is_owner,
+    globalMuted: !!(userById(m.id) && userById(m.id).muted), groupMuted: !!m.muted }))
+    .sort((a, b) => (b.owner - a.owner) || nameCollate(a.username, b.username));
+}
+
+function chatTitleName() {
+  if (chatMode.type === 'group') return '大群聊天';
+  return groupDetail && groupDetail.id === chatMode.id ? groupDetail.name : '小群';
+}
+
+// 成员列表行右侧的箭头（SVG，尺寸足够醒目）
+const MEMBER_CHEVRON = '<svg class="chev" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function renderMemberList() {
+  if (!isGroupChat()) { closePanel(); return; }
+  panelKind = 'members';
+  const rows = memberRows();
+  let html = `<p class="hint" style="margin: 0 0 var(--gap);">共 ${rows.length} 人，点击成员查看详情。</p>`;
+  rows.forEach(r => {
+    // 大群列表显示“大群禁言”；小群列表显示“本群禁言”（小群列表中群主置顶的“群主”标记只在小群列表出现）
+    const label = chatMode.type === 'group'
+      ? muteLabel(r.globalMuted, r.bigMuted, '大群禁言')
+      : muteLabel(r.globalMuted, r.groupMuted, '本群禁言');
+    const muteTag = label ? ` <span class="tag muted">${label}</span>` : '';
+    html += `<div class="panel-row clickable" data-mview="${r.id}"><span>${escapeHtml(r.username)}${aliasHtml(r.alias)}` +
+      `${r.owner ? ' <span class="owner-tag">群主</span>' : ''}${muteTag}</span>${MEMBER_CHEVRON}</div>`;
+  });
+  showPanel(`成员列表 · ${chatTitleName()}`, html);
+}
+
+// 成员详情：只显示用户名、身份、别名、状态；可直接私聊；按权限显示操作
+function renderMemberDetail(uid) {
+  const isSelf = !!me && uid === me.id;
+  const gm = chatMode.type === 'small' && groupDetail && groupDetail.id === chatMode.id
+    ? groupDetail.members.find(m => m.id === uid) : null;
+  if (chatMode.type === 'small' && !gm) { renderMemberList(); return; }   // 已不在群中
+  const u = isSelf
+    ? { username: me.username, alias: me.alias, is_admin: me.is_admin, sub_admin: me.sub_admin, muted: me.muted, big_muted: me.big_muted }
+    : userById(uid);
+  if (!u && !gm) { renderMemberList(); return; }
+  panelKind = 'member';
+  memberUid = uid;
+  const username = u ? u.username : gm.username;
+  const alias = u ? u.alias : gm.alias;
+  const roles = [];
+  if (gm && gm.is_owner) roles.push('群主');
+  if (u && u.is_admin) roles.push('主管理员');
+  else if (u && u.sub_admin) roles.push('副管理员');
+  if (!roles.length) roles.push('普通用户');
+  const status = [];
+  if (u && u.muted) status.push('全局禁言');
+  if (u && u.big_muted) status.push('大群禁言');
+  if (gm && gm.muted) status.push('本群禁言');
+  const info = '<div class="udinfo">' +
+    `<div><span>用户名</span><span>${escapeHtml(username)}</span></div>` +
+    `<div><span>身份</span><span>${escapeHtml(roles.join('、'))}</span></div>` +
+    `<div><span>别名</span><span>${escapeHtml(alias || '无')}</span></div>` +
+    `<div><span>状态</span><span>${status.length ? '<span class="muted-tag">' + status.join('、') + '</span>' : '正常'}</span></div>` +
+    '</div>';
+  let actions = '';
+  if (!isSelf) actions += `<button class="secondary" type="button" data-pm="${uid}">私聊</button>`;
+  // 小群群主：禁言 / 踢出（只影响本群；群主自己不能操作）
+  if (gm && groupDetail.is_owner && !gm.is_owner && !isSelf) {
+    actions += `<button class="secondary" type="button" data-act="mute-group" data-uid="${uid}" data-muted="${gm.muted ? 0 : 1}">${gm.muted ? '解除禁言' : '禁言'}</button>`;
+    actions += `<button class="danger" type="button" data-act="kick" data-uid="${uid}">踢出</button>`;
+  }
+  // 大群：主/副管理员可设置大群禁言（只影响大群）与全局禁言（私聊和所有群聊）；不能操作主管理员
+  if (chatMode.type === 'group' && me && me.is_staff && u && !isSelf && !u.is_admin) {
+    actions += `<button class="${u.big_muted ? 'secondary' : 'danger'}" type="button" data-act="mute-big" data-uid="${uid}" data-muted="${u.big_muted ? 0 : 1}">${u.big_muted ? '解除大群禁言' : '大群禁言'}</button>`;
+    actions += `<button class="${u.muted ? 'secondary' : 'danger'}" type="button" data-act="mute-global" data-uid="${uid}" data-muted="${u.muted ? 0 : 1}">${u.muted ? '解除全局禁言' : '全局禁言'}</button>`;
+  }
+  showPanel('成员详情',
+    '<div class="row" style="margin-bottom: var(--gap);"><button class="ghost small" type="button" data-back="1">← 返回成员列表</button></div>' +
+    info + (actions ? `<div class="row" style="margin-top: var(--gap);">${actions}</div>` : ''));
+}
+
+// 成员详情中的操作
+async function memberAction(act, uid, btn) {
+  const name = nameOf(uid);
+  const on = btn.dataset.muted === '1';
+  try {
+    if (act === 'mute-group') {
+      if (!groupDetail || groupDetail.id !== chatMode.id || !groupDetail.is_owner) return;
+      await api('/api/groups/mute', 'POST', { group_id: chatMode.id, user_id: uid, muted: on });
+      toast(on ? '已禁言 ' + name : '已解除 ' + name + ' 的禁言');
+      await loadGroupDetail(chatMode.id);
+    } else if (act === 'mute-big') {
+      await changeBigMute(uid, on);
+      toast(on ? '已大群禁言 ' + name : '已解除 ' + name + ' 的大群禁言');
+    } else if (act === 'mute-global') {
+      await api('/api/admin/mute', 'POST', { user_id: uid, muted: on });
+      toast(on ? '已全局禁言 ' + name : '已解除 ' + name + ' 的全局禁言');
+      await loadUsers();
+      if (me && me.is_staff) loadAdminUsers();
+    } else if (act === 'kick') {
+      const gid = chatMode.id;
+      const ok = await askConfirm(`将 ${name} 移出该群？`, '踢出');
+      if (!ok) return;
+      await api('/api/groups/kick', 'POST', { group_id: gid, user_id: uid });
+      toast('已踢出 ' + name);
+      await loadGroupDetail(gid);
+      loadGroups();
+      renderMemberList();
+      return;
+    }
+    refreshOpenPanel();
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+// 群主拉入用户：发送群邀请（对方同意后才加入）
+function openInvitePanel() {
+  if (!groupDetail || groupDetail.id !== chatMode.id || !groupDetail.is_owner) return;
+  panelKind = 'invite';
+  renderInvitePanel();
+}
+
+function renderInvitePanel() {
+  const d = groupDetail;
+  if (!d || d.id !== chatMode.id) { closePanel(); return; }
+  const inGroup = new Set(d.members.map(m => m.id));
+  let rows = '';
+  users.filter(u => !u.pending && !inGroup.has(u.id)).forEach(u => {
+    rows += `<div class="panel-row"><span>${escapeHtml(u.username)}${aliasHtml(u.alias)}</span>` +
+      `<button class="secondary small" data-invite="${u.id}" type="button">邀请</button></div>`;
+  });
+  if (!rows) rows = '<div class="hint">没有可以拉入的用户</div>';
+  showPanel(`拉入用户 · ${d.name}`,
+    '<p class="hint" style="margin: 0 0 var(--gap);">发送群邀请，对方在私聊中点击并同意后才会加入本群。</p>' + rows);
+}
+
+async function sendInvite(uid) {
+  if (!groupDetail || groupDetail.id !== chatMode.id || !groupDetail.is_owner) return;
+  try {
+    await api('/api/groups/invite', 'POST', { group_id: chatMode.id, user_id: uid });
+    toast('已发送邀请给 ' + nameOf(uid));
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+// 面板打开时，数据变化后重新渲染（成员状态、禁言等）
+function refreshOpenPanel() {
+  if (!isPanelOpen()) return;
+  if (panelKind === 'members') renderMemberList();
+  else if (panelKind === 'member') renderMemberDetail(memberUid);
+  else if (panelKind === 'invite') renderInvitePanel();
+}
+
+function bindGroupUI() {
+  document.getElementById('panelBody').addEventListener('click', e => {
+    if (e.target.id === 'newGroupOk') { submitCreateGroup(); return; }
+    if (e.target.id === 'renameGroupOk') { submitRename(); return; }
+    if (e.target.closest('[data-back]')) { renderMemberList(); return; }
+    const row = e.target.closest('[data-mview]');
+    if (row) { renderMemberDetail(Number(row.dataset.mview)); return; }
+    const pm = e.target.closest('[data-pm]');
+    if (pm) { const uid = Number(pm.dataset.pm); closePanel(); openPrivate(uid); return; }
+    const inv = e.target.closest('[data-invite]');
+    if (inv) { sendInvite(Number(inv.dataset.invite)); return; }
+    const btn = e.target.closest('button[data-act]');
+    if (btn) memberAction(btn.dataset.act, Number(btn.dataset.uid), btn);
+  });
+  document.getElementById('panelClose').addEventListener('click', closePanel);
+  document.getElementById('panelModal').addEventListener('click', e => {
+    if (e.target.id === 'panelModal') closePanel();
+  });
+}
+bindGroupUI();
+
+// ---------- 聊天：左侧会话栏（群聊 / 私聊）
+// 群聊（大群 + 小群）统一按最后一条消息时间从新到旧排序；没有消息的小群按创建时间
+function bigLastAt() {
+  const m = groupCache[groupCache.length - 1];
+  return m ? m.created_at : 0;
+}
+
+function orderedGroupItems() {
+  const items = [{ big: true, key: 'g', t: bigLastAt() }];
+  groups.forEach(g => items.push({ big: false, key: 's' + g.id, t: g.last_at || g.created_at || 0, g }));
+  items.sort((a, b) => b.t - a.t);
+  return items;
+}
+
+// 群聊顺序或名称/人数变化时重新渲染侧边栏（只有排序结果变化才重绘，避免打断操作）
+function refreshGroupOrder() {
+  const key = orderedGroupItems().map(it => it.big ? 'g' : ('s' + it.g.id + ':' + it.g.name + ':' + it.g.member_count)).join('|');
+  if (key !== groupsKey) { groupsKey = key; renderSidebar(); }
+  else updateDots();
+}
+
+function renderSidebar() {
+  const box = document.getElementById('sideList');
+  const ordered = privateOrder();
+  lastOrderKey = ordered.map(u => u.id).join(',');
+  let html = '<div class="sec sec-row">群聊<button class="ghost small plus-btn" type="button" title="新建小群" onclick="openCreateGroup()">+</button></div>';
+  orderedGroupItems().forEach(it => {
+    if (it.big) {
+      html += `<div class="item chat-item ${chatMode.type === 'group' ? 'active' : ''}" data-group="1"><div class="nm">大群聊天</div><div class="pv" data-pv-big></div><span class="dot hidden" data-dot="group"></span></div>`;
+    } else {
+      const g = it.g;
+      const active = chatMode.type === 'small' && chatMode.id === g.id;
+      html += `<div class="item chat-item ${active ? 'active' : ''}" data-gid="${g.id}"><div class="nm">${escapeHtml(g.name)}</div><div class="pv" data-pv-gid="${g.id}"></div><span class="dot hidden" data-dot-gid="${g.id}"></span></div>`;
+    }
+  });
+  html += '<div class="sec">私聊</div>';
+  ordered.forEach(u => {
+    const active = chatMode.type === 'private' && chatMode.user === u.id;
+    const roleTag = u.is_admin ? ' <span class="tag staff">主管理员</span>' : (u.sub_admin ? ' <span class="tag staff">副管理员</span>' : '');
+    const mLabel = u.pending ? '' : muteLabel(u.muted, u.big_muted, '大群禁言');
+    const mutedTag = mLabel ? ` <span class="muted-tag">${mLabel}</span>` : '';
+    const blockTag = u.blocked ? ' <span class="tag blocked">已拉黑</span>' : '';
+    html += `<div class="item chat-item ${active ? 'active' : ''}" data-uid="${u.id}">
+      <div class="nm">${escapeHtml(u.username)}${aliasHtml(u.alias)}${roleTag}${mutedTag}${blockTag}</div><div class="pv" data-pv-uid="${u.id}"></div><span class="dot hidden" data-dot-uid="${u.id}"></span></div>`;
+  });
+  if (!ordered.length) html += '<div class="hint" style="padding:8px 12px">暂无其他用户</div>';
+  box.innerHTML = html;
+  box.querySelector('[data-group]').addEventListener('click', openGroup);
+  box.querySelectorAll('.item[data-gid]').forEach(el => {
+    el.addEventListener('click', () => openSmall(Number(el.dataset.gid)));
+  });
+  box.querySelectorAll('.item[data-uid]').forEach(el => {
+    el.addEventListener('click', () => openPrivate(Number(el.dataset.uid)));
+  });
+  updateDots();
+}
+
+// 聊天标题：私聊显示黑名单状态；小群显示群名与人数；三个点只在私聊和小群中出现
+function updateChatTitle() {
+  const title = document.getElementById('chatTitle');
+  document.getElementById('chatMoreBtn').classList.remove('hidden');   // 大群、小群、私聊都有三个点菜单
+  if (chatMode.type === 'group') {
+    title.textContent = '大群聊天';
+  } else if (chatMode.type === 'private') {
+    const alias = aliasOf(chatMode.user);
+    const u = userById(chatMode.user);
+    title.textContent = '与 ' + nameOf(chatMode.user) + (alias ? '（' + alias + '）' : '') + ' 私聊'
+      + (u && u.blocked ? '（已加入黑名单）' : '');
+  } else {
+    const detail = groupDetail && groupDetail.id === chatMode.id ? groupDetail : null;
+    const listed = groups.find(x => x.id === chatMode.id);
+    const name = detail ? detail.name : (listed ? listed.name : '小群');
+    const count = detail ? detail.members.length : (listed ? listed.member_count : '');
+    title.textContent = name + (count !== '' ? '（' + count + ' 人）' : '');
+  }
+}
+
+function refreshChatUI() {
+  updateChatTitle();
+  applyMuteState();
+}
+
+function openGroup() {
+  if (chatMode.type === 'group') return;
+  chatMode = { type: 'group' };
+  renderChat();
+}
+
+function openPrivate(uid) {
+  chatMode = { type: 'private', user: uid };
+  renderChat();
+}
+
+function openSmall(gid) {
+  chatMode = { type: 'small', id: gid };
+  renderChat();
+}
+
+// 切换视图时重新渲染聊天区：先用缓存立即渲染，再拉取新消息（返回聊天页时不会丢失历史消息）
+function renderChat() {
+  hideMentions();
+  hideMsgMenu();
+  hideChatMenu();
+  const box = document.getElementById('chatBox');
+  box.innerHTML = '';
+  if (chatMode.type === 'group') {
+    appendEarlierBar(box, groupHasMore);
+    groupCache.forEach(m => box.appendChild(groupBubbleEl(m)));
+    box.scrollTop = box.scrollHeight;
+    markGroupSeen();
+  } else if (chatMode.type === 'private') {
+    const st = privState(chatMode.user);
+    appendEarlierBar(box, st.hasMore);
+    st.msgs.forEach(m => box.appendChild(privateBubbleEl(m)));
+    box.scrollTop = box.scrollHeight;
+    loadPrivate();
+  } else {
+    const st = smallState(chatMode.id);
+    appendEarlierBar(box, st.hasMore);
+    st.msgs.forEach(m => box.appendChild(smallBubbleEl(m)));
+    box.scrollTop = box.scrollHeight;
+    markSmallSeen(chatMode.id);
+    loadSmall();
+    loadGroupDetail(chatMode.id);
+  }
+  loadDraftIntoInput();
+  refreshQuoteBar();
+  renderSidebar();
+  refreshChatUI();
+}
+
+// 构造一条消息的气泡。已撤回的消息只显示“消息已撤回”，不可点击、不带引用。
+function buildBubble(opts) {
+  const mine = !!me && opts.uid === me.id;
+  const div = document.createElement('div');
+  div.dataset.mid = opts.id;
+  div.className = 'bubble' + (opts.recalled ? '' : ' clickable') + (mine ? ' me' : '')
+    + (opts.mentioned && !mine ? ' mention' : '');
+  const isHtml = opts.kind === 'html';
+  let body;
+  if (opts.recalled) body = '<span class="recalled">消息已撤回</span>';
+  else body = isHtml ? '<span class="htmllink">HTML消息，点击查看。</span>' : highlightAt(opts.content);
+  div.innerHTML = `<div class="meta">${escapeHtml(opts.name)}${aliasHtml(opts.alias)} · ${fmtTime(opts.time)}</div>
+                   <div class="text${opts.recalled ? ' recalled-text' : ''}">${body}</div>${opts.recalled ? '' : quoteHtml(opts.quote)}`;
+  if (!opts.recalled) div.querySelector('.text').addEventListener('click', e => openMsgMenu(e, opts));
+  return div;
+}
+
+// 消息是否 @ 了所有人（文本消息中出现 @所有人）
+function atAll(m) { return m.kind !== 'html' && /@所有人/.test(m.content || ''); }
+
+function groupBubbleEl(m) {
+  return buildBubble({
+    id: m.id, uid: m.user_id, name: m.username, alias: m.alias, time: m.created_at, content: m.content,
+    kind: m.kind, quote: m.quote, recalled: !!m.recalled,
+    mentioned: !!me && ((m.mentions || []).includes(me.id) || atAll(m)),
+  });
+}
+
+function privateBubbleEl(m) {
+  if (m.kind === 'invite' && !m.recalled) {   // 群邀请（蓝色）
+    return buildInviteBubble({ id: m.id, uid: m.from_id, name: nameOf(m.from_id), time: m.created_at,
+      content: m.content, done: !!m.invite_done, mine: !!me && m.from_id === me.id });
+  }
+  return buildBubble({
+    id: m.id, uid: m.from_id, name: nameOf(m.from_id), alias: aliasOf(m.from_id), time: m.created_at,
+    content: m.content, kind: m.kind, quote: m.quote, recalled: !!m.recalled, mentioned: false,
+  });
+}
+
+function smallBubbleEl(m) {
+  return buildBubble({
+    id: m.id, uid: m.user_id, name: m.username, alias: m.alias, time: m.created_at, content: m.content,
+    kind: m.kind, quote: m.quote, recalled: !!m.recalled,
+    mentioned: !!me && ((m.mentions || []).includes(me.id) || atAll(m)),
+  });
+}
+
+// 群邀请气泡：对方一方点击后确认是否加入；自己发出的只显示状态
+function buildInviteBubble(opts) {
+  const mine = !!opts.mine;
+  const div = document.createElement('div');
+  div.dataset.mid = opts.id;
+  div.className = 'bubble' + (mine ? ' me' : '') + (!mine && !opts.done ? ' clickable' : '');
+  const name = escapeHtml(opts.content);
+  const text = mine
+    ? '你邀请对方进入' + name + (opts.done ? '（对方已同意）' : '')
+    : '邀请你进入' + name + (opts.done ? '（已同意）' : '');
+  div.innerHTML = `<div class="meta">${escapeHtml(opts.name)} · ${fmtTime(opts.time)}</div>` +
+    `<div class="text invite-text">${text}</div>`;
+  if (!mine) div.querySelector('.text').addEventListener('click', () => openInvite(opts));
+  return div;
+}
+
+// 点击群邀请：确认后加入小群（只能同意一次）
+async function openInvite(opts) {
+  if (opts.done) { toast('该邀请已处理', false); return; }
+  const ok = await askConfirm(`${opts.name} 邀请你加入小群「${opts.content}」，是否同意？`, '同意');
+  if (!ok) return;
+  try {
+    await api('/api/invites/accept', 'POST', { id: opts.id });
+    toast('已加入「' + opts.content + '」');
+    markInviteDone(opts.uid, opts.id);
+  } catch (err) {
+    toast(err.message, false);
+    if (/已处理|已在该群/.test(err.message)) markInviteDone(opts.uid, opts.id);
+  }
+  loadGroups();
+}
+
+// 本地标记邀请已处理，并刷新正在显示的气泡
+function markInviteDone(peer, id) {
+  const st = privCache[peer];
+  const m = st && st.msgs.find(x => x.id === id);
+  if (m) m.invite_done = true;
+  if (!m || chatMode.type !== 'private' || chatMode.user !== peer) return;
+  const el = document.querySelector(`#chatBox .bubble[data-mid="${id}"]`);
+  if (el) el.replaceWith(privateBubbleEl(m));
+}
+
+// 按会话类型生成气泡（加载更早消息时使用）
+function elementFor(key, m) {
+  if (key === 'g') return groupBubbleEl(m);
+  return key[0] === 'p' ? privateBubbleEl(m) : smallBubbleEl(m);
+}
+
+// 把已撤回的气泡改为“消息已撤回”（替换整个文本块，去掉原有的点击事件）
+function showRecalledBubble(div) {
+  const t = div.querySelector('.text');
+  if (t) {
+    const nt = document.createElement('div');
+    nt.className = 'text recalled-text';
+    nt.innerHTML = '<span class="recalled">消息已撤回</span>';
+    t.replaceWith(nt);
+  }
+  const q = div.querySelector('.quote');
+  if (q) q.remove();
+  div.classList.remove('clickable', 'mention');
+}
+
+function makeEarlierBar() {
+  const bar = document.createElement('div');
+  bar.className = 'earlier-bar';
+  bar.innerHTML = '<button class="ghost small" type="button">加载更早的消息</button>';
+  bar.querySelector('button').addEventListener('click', loadEarlier);
+  return bar;
+}
+
+// 按当前会话的 has_more 状态补上或移除“加载更早的消息”栏（首次加载后调用）
+function syncEarlierBar() {
+  const box = document.getElementById('chatBox');
+  const key = chatKey();
+  const more = key === 'g' ? groupHasMore
+    : (key[0] === 'p' ? privState(Number(key.slice(1))).hasMore : smallState(Number(key.slice(1))).hasMore);
+  const bar = box.querySelector('.earlier-bar');
+  if (more && !bar) box.insertBefore(makeEarlierBar(), box.firstChild);
+  else if (!more && bar) bar.remove();
+}
+
+function appendEarlierBar(box, hasMore) {
+  if (hasMore) box.appendChild(makeEarlierBar());
+}
+
+// 点击大群中别人的消息：把 @用户名 插入输入框（只在大群中有效；禁言时输入框不可用）
+function mentionUser(uid) {
+  if (!isGroupChat() || !me || blockedNow()) return;
+  const sel = window.getSelection ? String(window.getSelection()) : '';
+  if (sel.trim()) return;   // 正在选中文字时不触发
+  const u = userById(uid);
+  if (!u) return;
+  insertMention(u.username);
+}
+
+// 在输入框末尾插入 @用户名（已存在则不重复插入）
+function insertMention(username) {
+  const input = document.getElementById('chatInput');
+  const cur = input.value;
+  const tag = '@' + username;
+  if ((cur + ' ').includes(tag + ' ')) { input.focus(); return; }
+  const sep = (cur === '' || /\s$/.test(cur)) ? '' : ' ';
+  input.value = cur + sep + tag + ' ';
+  hideMentions();
+  autoResizeInput();
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+// 会话键：g 大群，p<用户ID> 私聊，s<小群ID> 小群
+function msgListByKey(key) {
+  if (key === 'g') return groupCache;
+  if (key[0] === 'p') { const st = privCache[Number(key.slice(1))]; return st ? st.msgs : []; }
+  const st = smallCache[Number(key.slice(1))];
+  return st ? st.msgs : [];
+}
+
+function scopeOfKey(key) {
+  return key === 'g' ? 'group' : (key[0] === 'p' ? 'private' : 'small');
+}
+
+// 应用撤回：更新缓存中的消息；若该会话正在显示，同时更新页面上的气泡
+function applyRecalled(key, ids) {
+  if (!ids || !ids.length) return;
+  const list = msgListByKey(key);
+  const view = chatKey() === key;
+  ids.forEach(id => {
+    const m = list.find(x => x.id === id);
+    if (m && !m.recalled) {
+      m.recalled = true;
+      m.content = '';
+      m.kind = 'text';
+      m.quote = null;
+    }
+    // 引用了该消息的消息：引用框只显示“原消息已被撤回”
+    list.forEach(x => {
+      if (x.quote && x.quote.id === id) x.quote = { id, username: x.quote.username, kind: 'recalled', content: RECALLED_QUOTE };
+    });
+    if (view) {
+      const el = document.querySelector(`#chatBox .bubble[data-mid="${id}"]`);
+      if (el) showRecalledBubble(el);
+      document.querySelectorAll(`#chatBox .quote[data-qid="${id}"]`).forEach(q => {
+        q.textContent = RECALLED_QUOTE;
+        q.className = 'quote recalled-quote';
+      });
+    }
+  });
+}
+
+async function loadMessages() {
+  if (!me) return;
+  try {
+    const initial = groupLastId === 0;
+    const r = await api('/api/messages?after=' + groupLastId + (groupSynced ? '&rseq=' + groupRSeq : ''));
+    syncMuted(r.muted, r.big_muted);
+    if (initial) groupHasMore = !!r.has_more;
+    applyRecalled('g', r.recalled_ids);
+    groupRSeq = r.rseq;
+    groupSynced = true;
+    const box = document.getElementById('chatBox');
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    // 只取比已接收的最后一条更新的消息：轮询与发送后的刷新可能并发请求到同一批消息，
+    // 必须在拿到响应后再按 id 过滤，否则同一条消息会被显示多次
+    const fresh = r.messages.filter(m => m.id > groupLastId);
+    fresh.forEach(m => {
+      groupCache.push(m);
+      groupLastId = Math.max(groupLastId, m.id);
+      if (chatMode.type === 'group') box.appendChild(groupBubbleEl(m));
+    });
+    if (chatMode.type === 'group' && atBottom && fresh.length) box.scrollTop = box.scrollHeight;
+    if (chatMode.type === 'group' && initial) syncEarlierBar();
+    if (fresh.length) refreshGroupOrder();
+    if (!seen.groupInit) {   // 首次进入：已有的群消息视为已读，只提示之后被 @ 的消息
+      seen.group = groupLastId;
+      seen.groupInit = true;
+      saveSeen();
+    }
+    if (chatMode.type === 'group') markGroupSeen();
+    updateDots();
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+  }
+}
+
+async function loadPrivate() {
+  if (!me || chatMode.type !== 'private') return;
+  const uid = chatMode.user;
+  const st = privState(uid);
+  const initial = st.lastId === 0;
+  try {
+    const r = await api(`/api/private?with=${uid}&after=${st.lastId}` + (st.synced ? `&rseq=${st.rseq}` : ''));
+    if (initial) st.hasMore = !!r.has_more;
+    applyRecalled('p' + uid, r.recalled_ids);
+    if (initial && chatMode.type === 'private' && chatMode.user === uid) syncEarlierBar();
+    st.rseq = r.rseq;
+    st.synced = true;
+    const fresh = r.messages.filter(m => m.id > st.lastId);
+    fresh.forEach(m => { st.msgs.push(m); st.lastId = Math.max(st.lastId, m.id); });
+    // 请求期间用户可能已切换会话：数据已进入缓存，只在仍停留在该会话时追加显示
+    if (chatMode.type === 'private' && chatMode.user === uid && fresh.length) {
+      const box = document.getElementById('chatBox');
+      const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+      fresh.forEach(m => box.appendChild(privateBubbleEl(m)));
+      if (atBottom) box.scrollTop = box.scrollHeight;
+    }
+    markPrivateSeen(uid);
+    updateDots();
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+    else if (err.status === 404) openGroup();
+  }
+}
+
+async function loadSmall() {
+  if (!me || chatMode.type !== 'small') return;
+  const gid = chatMode.id;
+  const st = smallState(gid);
+  const initial = st.lastId === 0;
+  try {
+    const r = await api(`/api/group-messages?group=${gid}&after=${st.lastId}` + (st.synced ? `&rseq=${st.rseq}` : ''));
+    if (initial) st.hasMore = !!r.has_more;
+    applyRecalled('s' + gid, r.recalled_ids);
+    if (initial && chatMode.type === 'small' && chatMode.id === gid) syncEarlierBar();
+    st.rseq = r.rseq;
+    st.synced = true;
+    const fresh = r.messages.filter(m => m.id > st.lastId);
+    fresh.forEach(m => { st.msgs.push(m); st.lastId = Math.max(st.lastId, m.id); });
+    if (fresh.length) {   // 更新小群的最后消息信息，并按时间重新排序
+      const gr = groups.find(x => x.id === gid);
+      const last = fresh[fresh.length - 1];
+      if (gr) { gr.last_id = last.id; gr.last_at = last.created_at; gr.last_from = last.user_id; }
+      refreshGroupOrder();
+    }
+    if (chatMode.type === 'small' && chatMode.id === gid) {
+      // 我在本群的禁言状态以消息接口为准（群主禁言后即时生效）
+      if (groupDetail && groupDetail.id === gid && !!groupDetail.my_muted !== !!r.muted) {
+        groupDetail.my_muted = !!r.muted;
+        refreshChatUI();
+      }
+      if (fresh.length) {
+        const box = document.getElementById('chatBox');
+        const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+        fresh.forEach(m => box.appendChild(smallBubbleEl(m)));
+        if (atBottom) box.scrollTop = box.scrollHeight;
+      }
+      markSmallSeen(gid);
+    }
+    updateDots();
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+    else if (err.status === 404 && chatMode.type === 'small' && chatMode.id === gid) {
+      toast('该小群已解散或你已不在群中', false);
+      openGroup();
+      loadGroups();
+    }
+  }
+}
+
+// 加载更早的消息（每次 100 条），插入到列表顶部并保持阅读位置
+let earlierBusy = false;
+async function loadEarlier() {
+  if (earlierBusy) return;
+  const key = chatKey();
+  const list = msgListByKey(key);
+  if (!list.length) return;
+  const first = list[0].id;
+  let path;
+  if (key === 'g') path = '/api/messages?before=' + first;
+  else if (key[0] === 'p') path = `/api/private?with=${key.slice(1)}&before=${first}`;
+  else path = `/api/group-messages?group=${key.slice(1)}&before=${first}`;
+  earlierBusy = true;
+  try {
+    const r = await api(path);
+    const older = r.messages.filter(m => m.id < first);
+    list.unshift(...older);
+    if (key === 'g') groupHasMore = !!r.has_more;
+    else if (key[0] === 'p') privState(Number(key.slice(1))).hasMore = !!r.has_more;
+    else smallState(Number(key.slice(1))).hasMore = !!r.has_more;
+    if (chatKey() === key) {
+      const box = document.getElementById('chatBox');
+      const prev = box.scrollHeight;
+      box.querySelectorAll('.earlier-bar').forEach(b => b.remove());
+      const firstBubble = box.querySelector('.bubble');
+      older.forEach(m => box.insertBefore(elementFor(key, m), firstBubble));
+      if (r.has_more) box.insertBefore(makeEarlierBar(), box.firstChild);
+      box.scrollTop += box.scrollHeight - prev;
+    }
+  } catch (err) {
+    toast(err.message, false);
+  } finally {
+    earlierBusy = false;
+  }
+}
+
+// 禁言：全局禁言（私聊和所有群聊）、大群禁言（只影响大群）、小群禁言（只影响本群）三者独立
+function blockedNow() {
+  if (!me) return false;
+  if (me.muted) return true;   // 全局禁言：私聊和所有群聊都不能发言
+  if (chatMode.type === 'group') return !!me.big_muted;   // 大群禁言（只影响大群）
+  if (chatMode.type === 'small') return !!(groupDetail && groupDetail.id === chatMode.id && groupDetail.my_muted);   // 小群禁言（群主设置）
+  if (chatMode.type === 'private') { const pu = userById(chatMode.user); return !!(pu && pu.blocked_me); }   // 对方已将我加入黑名单
+  return false;
+}
+
+function applyMuteState() {
+  const input = document.getElementById('chatInput');
+  const blocked = blockedNow();
+  input.disabled = blocked;
+  document.getElementById('sendBtn').disabled = blocked;
+  document.getElementById('expandBtn').disabled = blocked;
+  document.getElementById('msgKind').disabled = blocked;
+  if (blocked) collapseInput();
+  if (blocked) {
+    if (me.muted) {
+      input.placeholder = '你已被管理员禁言，暂时不能发言（私聊和所有群聊）';
+      // 禁言状态是持续显示的说明，保留在输入栏上方（不做悬浮提示）
+      setHint('chatMsg', me.pending
+        ? '新注册账号默认被禁言，待管理员处理后才能发言（私聊和所有群聊）。'
+        : '你已被管理员禁言，暂时不能发言（私聊和所有群聊）。');
+    } else if (chatMode.type === 'group') {
+      input.placeholder = '你已被管理员禁言大群，暂时不能在大群发言';
+      setHint('chatMsg', '你已被管理员禁言大群，暂时不能在大群发言。');
+    } else if (chatMode.type === 'small') {
+      input.placeholder = '你已被群主禁言，暂时不能在本群发言';
+      setHint('chatMsg', '你已被群主禁言，暂时不能在本群发言。');
+    } else {
+      input.placeholder = '对方已将你加入黑名单，暂时不能发送私聊消息';
+      setHint('chatMsg', '对方已将你加入黑名单，暂时不能发送私聊消息。');
+    }
+  } else {
+    input.placeholder = chatMode.type === 'group'
+      ? '输入消息，按 Enter 发送，Shift+Enter 换行。输入 @ 可提醒用户或全体成员'
+      : (chatMode.type === 'small' ? '输入消息，按 Enter 发送，Shift+Enter 换行。输入 @ 可提醒成员或全体成员' : '输入私聊消息，按 Enter 发送，Shift+Enter 换行');
+    if (wasBlocked) setHint('chatMsg', '');
+  }
+  wasBlocked = blocked;
+}
+
+// 输入框高度随文本行数自动调整
+function autoResizeInput() {
+  saveDraft();
+  const input = document.getElementById('chatInput');
+  if (isExpanded()) { input.style.height = ''; input.style.overflowY = ''; return; }
+  const num = v => parseFloat(v) || 0;
+  // 先归零再读取 scrollHeight，避免受上一次高度影响
+  input.style.height = '0px';
+  const cs = getComputedStyle(input);
+  const lineH = num(cs.lineHeight) || 22;
+  const pad = (num(cs.paddingTop) + num(cs.paddingBottom)) || 16;
+  const border = (num(cs.borderTopWidth) + num(cs.borderBottomWidth)) || 2;
+  const min = 40;                  // 1 行：与控件同高（40px）
+  const max = lineH * 4 + pad + border; // 最多 4 行，之后滚动
+  const content = input.scrollHeight + border;
+  input.style.height = Math.min(Math.max(content, min), max) + 'px';
+  input.style.overflowY = content > max ? 'auto' : 'hidden';
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const kindSel = document.getElementById('msgKind');
+  const text = input.value.trim();
+  if (!text || !me || blockedNow()) return;
+  const mode = chatMode.type;
+  const sentGroup = mode === 'small' ? chatMode.id : null;
+  const sentUser = mode === 'private' ? chatMode.user : null;
+  const sentKey = chatKey();
+  const kind = (me && me.is_staff && kindSel.value === 'html') ? 'html' : 'text';   // 普通用户只能发送纯文本
+  const quote = pendingQuote && pendingQuote.chat === sentKey ? pendingQuote : null;
+  const body = { content: text, kind };
+  if (quote) body.quote_id = quote.id;
+  let path = '/api/messages';
+  if (mode === 'private') { path = '/api/private'; body.to = chatMode.user; }
+  else if (mode === 'small') { path = '/api/group-messages'; body.group_id = sentGroup; }
+  try {
+    input.value = '';
+    autoResizeInput();
+    hideMentions();
+    setQuote(null);
+    await api(path, 'POST', body);
+    kindSel.value = 'text';
+    setMsg('chatMsg', '');
+    collapseInput();
+    if (mode === 'private') await loadPrivate();
+    else if (mode === 'small') await loadSmall();
+    else await loadMessages();
+    const box = document.getElementById('chatBox');
+    box.scrollTop = box.scrollHeight;
+  } catch (err) {
+    // 发送失败：内容、类型与引用恢复到原会话（若已切换会话则不回填）
+    if (chatKey() === sentKey) {
+      input.value = text;
+      kindSel.value = kind;
+      autoResizeInput();
+      if (quote) setQuote(quote);
+    }
+    if (err.status === 403 && me) {   // 按返回的原因更新状态：全局禁言 / 小群禁言 / 被拉黑
+      if (err.message.includes('禁言大群')) me.big_muted = true;
+      else if (err.message.includes('管理员禁言')) me.muted = true;
+      else if (mode === 'private') {
+        const pu = userById(sentUser);
+        if (pu) pu.blocked_me = true;
+      }
+      else if (mode === 'small' && groupDetail && groupDetail.id === sentGroup) groupDetail.my_muted = true;
+      applyMuteState();
+    }
+    setMsg('chatMsg', err.message);
+    if (err.status === 401) leaveApp();
+  }
+}
+
+// ---------- @ 提示（大群与小群；“所有人”为一个特殊选项）
+function isGroupChat() { return chatMode.type === 'group' || chatMode.type === 'small'; }
+
+// 可 @ 的成员：大群为全部非待处理用户，小群为本群成员（均不含自己）
+function mentionCandidates() {
+  if (!me) return [];
+  if (chatMode.type === 'group') return users.filter(u => u.id !== me.id);
+  if (chatMode.type === 'small' && groupDetail && groupDetail.id === chatMode.id) {
+    return groupDetail.members.filter(m => m.id !== me.id)
+      .map(m => userById(m.id) || { id: m.id, username: m.username, alias: m.alias });
+  }
+  return [];
+}
+
+function updateMentionPop() {
+  const input = document.getElementById('chatInput');
+  if (!isGroupChat() || !me || blockedNow()) return hideMentions();
+  const caret = input.selectionStart;
+  const m = input.value.slice(0, caret).match(/@([\p{L}\p{N}_.\-]*)$/u);
+  if (!m) return hideMentions();
+  const q = m[1].toLowerCase();
+  const items = [];
+  if ('所有人'.startsWith(q)) items.push({ all: true, username: '所有人', alias: '' });
+  mentionCandidates().forEach(u => {
+    if (u.username.toLowerCase().startsWith(q) || (u.alias || '').toLowerCase().startsWith(q)) items.push(u);
+  });
+  if (!items.length) return hideMentions();
+  mentionState = { items, idx: 0, start: caret - m[0].length };
+  renderMentionPop();
+}
+
+function renderMentionPop() {
+  const pop = document.getElementById('mentionPop');
+  pop.innerHTML = '';
+  mentionState.items.slice(0, 30).forEach((u, i) => {
+    const d = document.createElement('div');
+    d.className = i === mentionState.idx ? 'sel' : '';
+    d.innerHTML = u.all ? '所有人<span class="alias">提醒全体成员</span>' : escapeHtml(u.username) + aliasHtml(u.alias);
+    d.addEventListener('mousedown', e => { e.preventDefault(); pickMention(i); });
+    pop.appendChild(d);
+  });
+  pop.classList.remove('hidden');
+}
+
+function pickMention(i) {
+  const input = document.getElementById('chatInput');
+  const u = mentionState.items[i];
+  if (!u) return;
+  const before = input.value.slice(0, mentionState.start);
+  const after = input.value.slice(input.selectionStart);
+  const ins = '@' + (u.all ? '所有人' : u.username) + ' ';
+  input.value = before + ins + after;
+  const pos = before.length + ins.length;
+  input.setSelectionRange(pos, pos);
+  hideMentions();
+  autoResizeInput();
+  input.focus();
+}
+
+function hideMentions() {
+  document.getElementById('mentionPop').classList.add('hidden');
+  mentionState.items = [];
+}
+
+// ---------- 文件预览
+async function loadFiles() {
+  if (!me) return;
+  try {
+    const r = await api('/api/files');
+    const body = document.getElementById('fileBody');
+    body.innerHTML = '';
+    document.getElementById('fileEmpty').classList.toggle('hidden', r.files.length > 0);
+    r.files.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'file-row' + (f.path === selectedPath ? ' selected' : '');
+      tr.dataset.path = f.path;
+      const dot = f.name.lastIndexOf('.');
+      const ext = dot > 0 ? f.name.slice(dot) : '(无)';
+      tr.innerHTML = `<td>${escapeHtml(f.path)}</td>
+        <td><span class="ext">${escapeHtml(ext)}</span></td>
+        <td>${fmtSize(f.size)}</td>
+        <td>${fmtTime(f.mtime)}</td>`;
+      tr.addEventListener('click', () => selectPreview(f.path, f.name));
+      body.appendChild(tr);
+    });
+    setMsg('fileMsg', '');
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+    else setMsg('fileMsg', err.message);
+  }
+}
+
+let previewToken = 0;  // 每次选择文件递增，用于丢弃过期的加载结果
+
+// 文本解码：优先 UTF-8；不是 UTF-8 时按 GB18030 解码（兼容 Windows 下保存的 GBK 文本）
+function decodeText(buf) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+  } catch (e) {
+    try { return new TextDecoder('gb18030').decode(buf); }
+    catch (e2) { return new TextDecoder('utf-8').decode(buf); }
+  }
+}
+
+function selectPreview(path, name) {
+  selectedPath = path;
+  document.querySelectorAll('tr.file-row').forEach(tr => tr.classList.toggle('selected', tr.dataset.path === path));
+  const token = ++previewToken;
+  const box = document.getElementById('previewBox');
+  box.className = 'preview';
+  box.innerHTML = '';
+  const kind = previewKind(name);
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  cap.textContent = name;
+  if (kind === 'image') {
+    const img = document.createElement('img');
+    img.alt = name;
+    img.src = fileUrl(path);
+    img.onerror = () => { cap.textContent = name + '（无法加载预览）'; img.remove(); };
+    box.appendChild(cap);
+    box.appendChild(img);
+  } else if (kind === 'video') {
+    const v = document.createElement('video');
+    v.controls = true;
+    v.preload = 'metadata';
+    v.setAttribute('controlsList', 'nodownload');
+    v.src = fileUrl(path);
+    v.onerror = () => { cap.textContent = name + '（当前浏览器无法播放该视频格式）'; v.remove(); fsRow.remove(); };
+    const fsRow = document.createElement('div');
+    fsRow.className = 'media-actions';
+    const fsBtn = document.createElement('button');
+    fsBtn.type = 'button';
+    fsBtn.className = 'ghost small';
+    fsBtn.textContent = '全屏';
+    fsBtn.title = '全屏播放（按 Esc 退出）';
+    fsBtn.onclick = () => enterFullscreen(v);
+    fsRow.appendChild(fsBtn);
+    box.appendChild(cap);
+    box.appendChild(v);
+    box.appendChild(fsRow);
+  } else if (kind === 'audio') {
+    const a = document.createElement('audio');
+    a.controls = true;
+    a.preload = 'metadata';
+    a.setAttribute('controlsList', 'nodownload');
+    a.src = fileUrl(path);
+    a.onerror = () => { cap.textContent = name + '（当前浏览器无法播放该音频格式）'; a.remove(); };
+    box.appendChild(cap);
+    box.appendChild(a);
+  } else if (kind === 'text') {
+    box.className = 'preview text';
+    box.appendChild(cap);
+    const hint = document.createElement('div');
+    hint.className = 'text-hint';
+    hint.textContent = '正在加载……';
+    box.appendChild(hint);
+    loadTextPreview(path, name, token, box, cap, hint);
+  } else {
+    cap.textContent = name + '：该文件类型不支持预览（支持图片、视频、音频和文本文件）';
+    box.appendChild(cap);
+  }
+}
+
+// 加载文本内容到可编辑文本框；没有任何保存/提交按钮，修改只存在于当前页面
+async function loadTextPreview(path, name, token, box, cap, hint) {
+  try {
+    const res = await fetch(fileUrl(path), { credentials: 'same-origin' });
+    if (token !== previewToken) return;
+    if (!res.ok) {
+      let msg = '文件无法预览';
+      try { msg = (await res.json()).error || msg; } catch (e) {}
+      if (res.status === 401) { leaveApp(); return; }
+      throw new Error(msg);
+    }
+    const text = decodeText(await res.arrayBuffer());
+    if (token !== previewToken) return;
+    const ta = document.createElement('textarea');
+    ta.className = 'text-preview';
+    ta.spellcheck = false;
+    ta.setAttribute('aria-label', '文本内容');
+    ta.value = text;
+    box.replaceChild(ta, hint);
+    const note = document.createElement('div');
+    note.className = 'text-hint';
+    note.textContent = '可直接在上方修改。修改仅在本页面有效，不会保存到服务器；重新选择文件后恢复为原内容。';
+    box.appendChild(note);
+    cap.textContent = name + '（文本，共 ' + text.length + ' 个字符）';
+  } catch (err) {
+    if (token !== previewToken) return;
+    cap.textContent = name + '：' + err.message;
+    hint.textContent = '';
+  }
+}
+
+// ---------- 公告
+// 公告 HTML 的高度自动适应：页面内脚本把自身高度通过 postMessage 报告给主页面
+const FIT_SCRIPT = '<script>(function(){function h(){var e=document.documentElement;parent.postMessage({fscFrameHeight:Math.ceil(e.getBoundingClientRect().height)},"*");}' +
+  'window.addEventListener("load",h);if(window.ResizeObserver){new ResizeObserver(h).observe(document.documentElement);}h();})();<\/script>';
+
+function annFrame(html) {
+  const f = document.createElement('iframe');
+  f.className = 'html-frame ann-frame';
+  f.setAttribute('sandbox', HTML_SANDBOX);
+  f.title = '公告内容';
+  f.style.height = '120px';
+  f.style.minHeight = '0';
+  f.srcdoc = html + FIT_SCRIPT;
+  return f;
+}
+
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (!d || typeof d.fscFrameHeight !== 'number') return;
+  document.querySelectorAll('iframe.ann-frame').forEach(f => {
+    if (f.contentWindow === e.source) f.style.height = Math.max(40, Math.min(d.fscFrameHeight, 20000)) + 'px';
+  });
+});
+
+async function loadAnnouncements() {
+  if (!me) return;
+  try {
+    const r = await api('/api/announcements');
+    const box = document.getElementById('annList');
+    box.innerHTML = '';
+    if (!r.announcements.length) box.innerHTML = '<div class="empty">暂无公告</div>';
+    r.announcements.slice().reverse().forEach(a => {
+      const div = document.createElement('div');
+      div.className = 'ann';
+      div.innerHTML = `<div class="head"><span>${escapeHtml(a.username)}${aliasHtml(a.alias)} · ${fmtTime(a.created_at)}</span>${me.is_staff ? `<button class="danger small" data-id="${a.id}">删除</button>` : ''}</div>`;
+      const body = document.createElement('div');
+      body.className = 'body';
+      if (a.kind === 'html') body.appendChild(annFrame(a.content));
+      else body.textContent = a.content;
+      div.appendChild(body);
+      box.appendChild(div);
+    });
+    box.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => deleteAnnouncement(Number(b.dataset.id))));
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+    else setMsg('annMsg', err.message);
+  }
+}
+
+async function postAnnouncement() {
+  const input = document.getElementById('announceInput');
+  const kindSel = document.getElementById('announceKind');
+  setMsg('annMsg', '');
+  try {
+    await api('/api/announcements', 'POST', { content: input.value, kind: kindSel.value });
+    input.value = '';
+    kindSel.value = 'text';
+    setMsg('annMsg', '公告已发布', true);
+    loadAnnouncements();
+  } catch (err) { setMsg('annMsg', err.message); }
+}
+
+async function deleteAnnouncement(id) {
+  if (!(await askConfirm('确定删除这条公告？', '删除'))) return;
+  setMsg('annMsg', '');
+  try {
+    await api('/api/announcements/delete', 'POST', { id });
+    setMsg('annMsg', '公告已删除。', true);
+    loadAnnouncements();
+  } catch (err) { setMsg('annMsg', err.message); }
+}
+
+// ---------- 聊天记录搜索（所有大群、小群、私聊中的文字消息）----------
+// 打开搜索：“搜索全局”每次默认关闭，只搜索当前会话
+function openSearch() {
+  if (!me) return;
+  document.getElementById('searchModal').classList.remove('hidden');
+  document.getElementById('searchGlobal').checked = false;
+  updateSearchScopeUI();
+  const input = document.getElementById('searchInput');
+  input.focus();
+  input.select();
+}
+function updateSearchScopeUI() {
+  const global = document.getElementById('searchGlobal').checked;
+  document.getElementById('searchInput').placeholder = global
+    ? '搜索全部聊天记录（大群、小群、私聊），回车搜索'
+    : '搜索当前会话的消息，回车搜索';
+  const box = document.getElementById('searchBody');
+  if (!document.getElementById('searchInput').value.trim()) {
+    box.innerHTML = '<div class="hint">' + (global
+      ? '将搜索全部大群、小群和私聊中的文字消息。'
+      : '将搜索当前会话（“' + escapeHtml(document.getElementById('chatTitle').textContent) + '”）中的文字消息。') + '</div>';
+  }
+}
+function closeSearch() {
+  document.getElementById('searchModal').classList.add('hidden');
+}
+// 搜索结果分页：每页 100 条（服务端按时间从新到旧），底部“加载更多”继续取更早的结果
+let searchState = { q: '', chat: '', hits: [], offset: 0, hasMore: false, busy: false, seq: 0 };
+function searchUrl(st, offset) {
+  return '/api/search?q=' + encodeURIComponent(st.q) + st.chat + (offset ? '&offset=' + offset : '');
+}
+function hitKey(h) { return h.scope + '|' + (h.group_id || 0) + '|' + (h.peer_id || 0) + '|' + h.msg_id; }
+async function runSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  const box = document.getElementById('searchBody');
+  if (!q) { box.innerHTML = '<div class="hint">请输入搜索内容</div>'; return; }
+  box.innerHTML = '<div class="hint">搜索中…</div>';
+  const global = document.getElementById('searchGlobal').checked;
+  const chat = global ? '' : '&chat=' + encodeURIComponent(chatKey());   // 默认只搜索当前会话
+  const seq = searchState.seq + 1;
+  const st = { q, chat, hits: [], offset: 0, hasMore: false, busy: true, seq };
+  searchState = st;
+  try {
+    const r = await api(searchUrl(st, 0));
+    if (seq !== searchState.seq) return;   // 已发起新的搜索，丢弃旧结果
+    st.hits = r.hits || [];
+    st.offset = st.hits.length;
+    st.hasMore = !!r.has_more;
+    st.busy = false;
+    renderSearch();
+  } catch (err) {
+    if (seq !== searchState.seq) return;
+    st.busy = false;
+    box.innerHTML = '<div class="hint">' + escapeHtml(err.message) + '</div>';
+  }
+}
+async function loadMoreSearch() {
+  const st = searchState;
+  if (st.busy || !st.hasMore) return;
+  const seq = st.seq;
+  st.busy = true;
+  renderSearch();
+  try {
+    const r = await api(searchUrl(st, st.offset));
+    if (seq !== searchState.seq) return;
+    const have = new Set(st.hits.map(hitKey));
+    (r.hits || []).forEach(h => {
+      if (!have.has(hitKey(h))) { have.add(hitKey(h)); st.hits.push(h); }
+    });
+    st.offset += (r.hits || []).length;
+    st.hasMore = !!r.has_more;
+  } catch (err) {
+    if (seq !== searchState.seq) return;
+    toast(err.message, false);
+  }
+  if (seq !== searchState.seq) return;
+  st.busy = false;
+  renderSearch();
+}
+// 关键词高亮：先按原文切分，再分别转义，避免 HTML 注入
+function highlightHtml(text, q) {
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  let out = '', last = 0, m;
+  while ((m = re.exec(text)) !== null && m[0].length) {
+    out += escapeHtml(text.slice(last, m.index)) + '<mark>' + escapeHtml(m[0]) + '</mark>';
+    last = m.index + m[0].length;
+  }
+  return out + escapeHtml(text.slice(last));
+}
+function renderSearch() {
+  const box = document.getElementById('searchBody');
+  const st = searchState;
+  if (!st.hits.length && !st.busy) {
+    box.innerHTML = '<div class="hint">没有找到包含“' + escapeHtml(st.q) + '”的消息</div>';
+    return;
+  }
+  let html = st.hits.map((h, i) => {
+    let where, sender;
+    if (h.scope === 'group') { where = '大群聊天'; sender = h.sender; }
+    else if (h.scope === 'small') { where = '小群：' + h.group_name; sender = h.sender; }
+    else { where = '私聊：' + nameOf(h.peer_id); sender = h.from_id === me.id ? '我' : nameOf(h.peer_id); }
+    return `<div class="hit" data-idx="${i}"><div class="hit-meta">${escapeHtml(where)} · ${escapeHtml(sender)} · ${escapeHtml(fmtTime(h.created_at))}</div><div class="hit-text">${highlightHtml(h.snippet, st.q)}</div></div>`;
+  }).join('');
+  if (st.hasMore) {
+    html += '<div class="hint"><button class="secondary small" id="searchMore" type="button"' + (st.busy ? ' disabled' : '') + '>' + (st.busy ? '加载中…' : '加载更多') + '</button></div>';
+  } else if (st.hits.length) {
+    html += '<div class="hint">共 ' + st.hits.length + ' 条结果</div>';
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('.hit').forEach(el => {
+    el.addEventListener('click', () => jumpToHit(st.hits[Number(el.dataset.idx)]));
+  });
+  const more = box.querySelector('#searchMore');
+  if (more) more.addEventListener('click', loadMoreSearch);
+}
+function hasMoreFor(key) {
+  if (key === 'g') return groupHasMore;
+  if (key[0] === 'p') return privState(Number(key.slice(1))).hasMore;
+  return smallState(Number(key.slice(1))).hasMore;
+}
+// 跳转到搜索结果：切换到对应会话，向更早的消息翻页直到出现目标消息，然后定位并高亮
+async function jumpToHit(h) {
+  closeSearch();
+  if (h.scope === 'group') chatMode = { type: 'group' };
+  else if (h.scope === 'small') chatMode = { type: 'small', id: h.group_id };
+  else chatMode = { type: 'private', user: h.peer_id };
+  renderChat();
+  const key = chatKey();
+  if (chatMode.type === 'group') await loadMessages();
+  else if (chatMode.type === 'private') await loadPrivate();
+  else await loadSmall();
+  for (let i = 0; i < 200; i++) {
+    if (chatKey() !== key) return;
+    if (msgListByKey(key).some(m => m.id === h.msg_id)) break;
+    if (!hasMoreFor(key)) { toast('没有找到这条消息', false); return; }
+    if (earlierBusy) { await new Promise(r => setTimeout(r, 150)); continue; }
+    await loadEarlier();
+  }
+  if (chatKey() !== key) return;
+  const el = document.querySelector('#chatBox .bubble[data-mid="' + h.msg_id + '"]');
+  if (!el) { toast('没有找到这条消息', false); return; }
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1600);
+}
+
+// ---------- 管理员：服务端口（仅主管理员；保存后服务自动切换到新端口，页面随之跳转）
+function renderPort(r) {
+  document.getElementById('portNow').textContent = r.port;
+  document.getElementById('portInput').value = r.value || '';
+  document.getElementById('portInput').placeholder = '留空 = ' + r.default;
+}
+async function loadPort() {
+  if (!me || !me.is_admin) return;
+  try { renderPort(await api('/api/admin/port')); }
+  catch (err) { setMsg('portMsg', err.message); }
+}
+function siteOrigin(port) {
+  return location.protocol + '//' + location.hostname + (port === 80 ? '' : ':' + port);
+}
+async function savePort() {
+  setMsg('portMsg', '');
+  const value = document.getElementById('portInput').value.trim();
+  let r;
+  try { r = await api('/api/admin/port', 'POST', { port: value }); }
+  catch (err) { setMsg('portMsg', err.message); return; }
+  if (!r.restart) {
+    renderPort({ port: r.port, value, default: 80 });
+    setMsg('portMsg', '端口未改变（' + r.port + '），设置已保存。', true);
+    return;
+  }
+  setMsg('portMsg', '已保存，服务正在切换到端口 ' + r.port + '，页面将自动跳转……', true);
+  await waitForPort(r.port);
+}
+// 等待新端口可以访问后跳转到新地址（登录状态保存在 cookie 中，跳转后仍然保持登录）
+async function waitForPort(port) {
+  const origin = siteOrigin(port);
+  for (let i = 0; i < 60; i++) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      await fetch(origin + '/api/me', { mode: 'no-cors', cache: 'no-store' });
+      location.href = origin + '/';
+      return;
+    } catch (e) { /* 新端口尚未就绪，继续等待 */ }
+  }
+  setMsg('portMsg', '新端口 ' + port + ' 暂时无法访问，请稍后手动打开：' + origin + '/', false);
+}
+
+// ---------- 管理员：解析域名列表
+async function loadHosts() {
+  if (!me || !me.is_admin) return;
+  try { renderHosts(await api('/api/admin/hosts')); }
+  catch (err) { setMsg('hostListMsg', err.message); }
+}
+
+function renderHosts(r) {
+  const body = document.getElementById('hostBody');
+  body.innerHTML = '';
+  if (!r.hosts.length) {
+    body.innerHTML = '<tr><td colspan="3" class="hint">列表为空。添加的域名会写入 hosts，并解析到指定 IP。</td></tr>';
+    return;
+  }
+  r.hosts.forEach(h => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><code>${escapeHtml(h.domain)}</code></td>
+      <td><div class="actions"><input class="ip-input" value="${escapeHtml(h.ip)}" maxlength="45"> <button class="secondary small">保存 IP</button></div></td>
+      <td><button class="danger small">删除</button></td>`;
+    const ipInput = tr.querySelector('.ip-input');
+    const btns = tr.querySelectorAll('button');
+    btns[0].addEventListener('click', () => updateHostIP(h.domain, ipInput.value.trim()));
+    btns[1].addEventListener('click', () => removeHost(h.domain));
+    body.appendChild(tr);
+  });
+}
+
+function showHostsResult(r, okText) {
+  if (r.hosts_error) {
+    setMsg('hostListMsg', okText + '，但 hosts 写入失败：' + r.hosts_error + '。请用记事本以管理员身份手动添加：' + (r.manual_lines || []).join('；'), false);
+  } else {
+    setMsg('hostListMsg', okText + '，hosts 已更新。', true);
+  }
+}
+
+async function addHostDomain() {
+  const dInput = document.getElementById('hostDomainInput');
+  const iInput = document.getElementById('hostIpInput');
+  setMsg('hostListMsg', '');
+  try {
+    const r = await api('/api/admin/hosts/add', 'POST', { domain: dInput.value.trim(), ip: iInput.value.trim() });
+    dInput.value = ''; iInput.value = '';
+    renderHosts(r);
+    showHostsResult(r, '已添加域名');
+  } catch (err) { setMsg('hostListMsg', err.message); }
+}
+
+async function updateHostIP(domain, ip) {
+  setMsg('hostListMsg', '');
+  try {
+    const r = await api('/api/admin/hosts/update', 'POST', { domain, ip });
+    renderHosts(r);
+    showHostsResult(r, '已更新 IP');
+  } catch (err) { setMsg('hostListMsg', err.message); }
+}
+
+async function removeHost(domain) {
+  setMsg('hostListMsg', '');
+  try {
+    const r = await api('/api/admin/hosts/remove', 'POST', { domain });
+    renderHosts(r);
+    showHostsResult(r, '已删除域名');
+  } catch (err) { setMsg('hostListMsg', err.message); }
+}
+
+// ---------- 管理员：用户管理
+function setPendingCount(n) {
+  document.getElementById('pendingDot').classList.toggle('hidden', !(me && me.is_staff && n > 0));
+}
+
+async function loadPendingBadge() {
+  try {
+    const r = await api('/api/admin/pending');
+    setPendingCount(r.count);
+  } catch (err) { if (err.status === 401) leaveApp(); }
+}
+
+async function loadAdminUsers() {
+  if (!me || !me.is_staff) return;
+  try {
+    const r = await api('/api/admin/users');
+    setPendingCount(r.pending);
+    adminUsers = r.users;
+    renderUserOverview();
+    if (currentPage === 'userdetail') renderUserDetail();
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+    else setMsg('adminUserMsg', err.message);
+  }
+}
+
+// 设置大群禁言（只影响大群发言）；成员详情与消息菜单共用
+async function changeBigMute(uid, on) {
+  await api('/api/admin/bigmute', 'POST', { user_id: uid, muted: on });
+  await loadUsers();
+  if (me && me.is_staff) loadAdminUsers();
+}
+
+async function setBigMute(id, muted) {
+  setMsg('adminUserMsg', '');
+  try {
+    await changeBigMute(id, muted);
+    setMsg('adminUserMsg', muted ? '已大群禁言该用户（只影响大群发言）。' : '已解除大群禁言。', true);
+  } catch (err) { setMsg('adminUserMsg', err.message); }
+}
+
+async function setMute(id, muted) {
+  setMsg('adminUserMsg', '');
+  try {
+    await api('/api/admin/mute', 'POST', { user_id: id, muted });
+    setMsg('adminUserMsg', muted ? '已全局禁言该用户（私聊和所有群聊均不能发言）。' : '已解除禁言。', true);
+    loadAdminUsers();
+    loadUsers();
+  } catch (err) { setMsg('adminUserMsg', err.message); }
+}
+
+async function setSubAdmin(id, on) {
+  setMsg('adminUserMsg', '');
+  try {
+    await api('/api/admin/subadmin', 'POST', { user_id: id, sub_admin: on });
+    setMsg('adminUserMsg', on ? '已设为副管理员。' : '已取消副管理员。', true);
+    loadAdminUsers();
+    loadUsers();
+  } catch (err) { setMsg('adminUserMsg', err.message); }
+}
+
+// 设置可创建小群数量（只禁止再创建，不解散已有的小群）
+async function setGroupLimit(id, value) {
+  setMsg('adminUserMsg', '');
+  if (!/^\d+$/.test(value)) { setMsg('adminUserMsg', '请输入非负整数。'); return; }
+  try {
+    await api('/api/admin/group-limit', 'POST', { user_id: id, limit: Number(value) });
+    setMsg('adminUserMsg', '已保存可创建小群数量。', true);
+    loadAdminUsers();
+  } catch (err) { setMsg('adminUserMsg', err.message); }
+}
+
+async function setAlias(id, alias) {
+  setMsg('adminUserMsg', '');
+  try {
+    await api('/api/admin/alias', 'POST', { user_id: id, alias });
+    setMsg('adminUserMsg', alias ? '别名已保存。' : '别名已清除。', true);
+    loadAdminUsers();
+    loadUsers();
+  } catch (err) { setMsg('adminUserMsg', err.message); }
+}
+
+// ---------- 第 4 轮：聊天缓存 / 草稿 / 引用 / 菜单 / HTML 弹窗 / 删除账号 ----------
+
+// 私聊缓存：按对象保存已拉取的消息，切换页面返回后直接渲染
+function privState(uid) {
+  if (!privCache[uid]) privCache[uid] = { lastId: 0, msgs: [], synced: false, rseq: 0, hasMore: false };
+  return privCache[uid];
+}
+
+// 未读私聊（置顶用）：按最后一条消息的 ID 从新到旧
+// 私聊列表顺序：按每个对象的最新消息（ID 越大越新）从新到旧；没有消息记录的用户排在最后
+function privateOrder() {
+  if (!me) return [];
+  const last = {};
+  privLatest.forEach(p => { last[p.user_id] = p.last_id; });
+  const others = users.filter(u => u.id !== me.id);
+  const withMsg = others.filter(u => last[u.id] !== undefined).sort((a, b) => last[b.id] - last[a.id]);
+  const rest = others.filter(u => last[u.id] === undefined);
+  return withMsg.concat(rest);
+}
+
+function chatKey() {
+  if (chatMode.type === 'group') return 'g';
+  if (chatMode.type === 'small') return 's' + chatMode.id;
+  return 'p' + chatMode.user;
+}
+
+function draftKey() {
+  const part = chatMode.type === 'group' ? 'group' : (chatMode.type === 'small' ? 's' + chatMode.id : chatMode.user);
+  return 'fsc_draft_' + (me ? me.id : 0) + '_' + part;
+}
+function saveDraft() {
+  if (!me) return;
+  const v = document.getElementById('chatInput').value;
+  try {
+    if (v) localStorage.setItem(draftKey(), v); else localStorage.removeItem(draftKey());
+  } catch (e) {}
+}
+function loadDraftIntoInput() {
+  let v = '';
+  try { v = (me && localStorage.getItem(draftKey())) || ''; } catch (e) {}
+  document.getElementById('chatInput').value = v;
+  autoResizeInput();
+}
+
+// 只取第一行，超出 n 字的部分用 ... 代替
+function oneLine(s, n) {
+  const t = String(s).replace(/\s*\n\s*/g, ' ').trim();
+  const chars = [...t];
+  return chars.length > n ? chars.slice(0, n).join('') + '...' : t;
+}
+
+function quoteText(q) { return q.kind === 'html' ? 'HTML消息' : oneLine(q.content, 40); }
+
+const RECALLED_QUOTE = '原消息已被撤回';
+function quoteHtml(q) {
+  if (!q) return '';
+  if (q.kind === 'recalled') return `<div class="quote recalled-quote" data-qid="${q.id}">${RECALLED_QUOTE}</div>`;
+  const body = q.kind === 'html' ? 'HTML消息' : oneLine(q.content, 30);
+  return `<div class="quote" data-qid="${q.id}">${escapeHtml(q.username)}：${escapeHtml(body)}</div>`;
+}
+
+function setQuote(q) {
+  pendingQuote = q;
+  refreshQuoteBar();
+}
+
+// 输入框上方的引用条；切换会话后引用自动失效
+function refreshQuoteBar() {
+  if (pendingQuote && pendingQuote.chat !== chatKey()) pendingQuote = null;
+  document.getElementById('quoteBar').classList.toggle('hidden', !pendingQuote);
+  if (pendingQuote) {
+    document.getElementById('quoteText').textContent = '引用 ' + pendingQuote.name + '：' + quoteText(pendingQuote);
+  }
+}
+
+// 点击消息：弹出菜单。HTML 消息的“复制”改为“打开”；已撤回的消息没有菜单
+function openMsgMenu(e, opts) {
+  e.stopPropagation();
+  const sel = window.getSelection ? String(window.getSelection()) : '';
+  if (sel.trim()) return;   // 正在选中文字时不弹出菜单
+  hideMentions();
+  hideChatMenu();
+  const menu = document.getElementById('msgMenu');
+  const isHtml = opts.kind === 'html';
+  const items = [[isHtml ? 'open' : 'copy', isHtml ? '打开' : '复制'], ['quote', '引用']];
+  if (isGroupChat() && me && !blockedNow() && opts.uid !== me.id) items.push(['at', '@TA']);
+  if (canRecall(opts)) items.push(['recall', '撤回']);
+  // 大群：主/副管理员点击他人消息，菜单最后是红色“禁言”（大群禁言，只影响大群）；已大群禁言或为主管理员时不显示
+  const target = userById(opts.uid);
+  if (chatMode.type === 'group' && me && me.is_staff && opts.uid !== me.id && !(target && (target.is_admin || target.big_muted))) {
+    items.push(['mute-big', '禁言', 'danger']);
+  }
+  menu.innerHTML = '';
+  items.forEach(([act, label, cls]) => {
+    const d = document.createElement('div');
+    d.textContent = label;
+    if (cls) d.className = 'danger-item';
+    d.addEventListener('click', () => { hideMsgMenu(); runMsgAction(act, opts); });
+    menu.appendChild(d);
+  });
+  msgMenuOpts = opts;
+  menu.classList.remove('hidden');
+  const w = menu.offsetWidth, h = menu.offsetHeight;
+  menu.style.left = Math.max(4, Math.min(e.clientX, window.innerWidth - w - 4)) + 'px';
+  menu.style.top = Math.max(4, Math.min(e.clientY, window.innerHeight - h - 4)) + 'px';
+}
+
+function hideMsgMenu() {
+  document.getElementById('msgMenu').classList.add('hidden');
+  msgMenuOpts = null;
+}
+
+function runMsgAction(act, o) {
+  if (act === 'copy') {
+    copyText(o.content).then(
+      () => setMsg('chatMsg', '已复制到剪贴板。', true),
+      () => setMsg('chatMsg', '复制失败，请手动选中文字后复制。'));
+  } else if (act === 'open') {
+    openHtmlModal(o.content);
+  } else if (act === 'quote') {
+    setQuote({ chat: chatKey(), id: o.id, name: o.name, kind: o.kind === 'html' ? 'html' : 'text', content: o.content });
+    // 大群引用别人的消息时，同时插入对方的 @（引用自己的消息不插入）
+    if (isGroupChat() && me && !blockedNow() && o.uid !== me.id) {
+      const u = userById(o.uid);
+      if (u) insertMention(u.username);
+    }
+    document.getElementById('chatInput').focus();
+  } else if (act === 'at') {
+    mentionUser(o.uid);
+  } else if (act === 'recall') {
+    recallMessage(o);
+  } else if (act === 'mute-big') {
+    muteBigFromMessage(o.uid);
+  }
+}
+
+// 大群消息菜单：主/副管理员大群禁言发言人
+async function muteBigFromMessage(uid) {
+  const name = nameOf(uid);
+  try {
+    await changeBigMute(uid, true);
+    toast('已大群禁言 ' + name);
+  } catch (err) { toast(err.message); }
+}
+
+// 2 分钟内可以撤回自己发送的消息（客户端先判断，服务端会再次校验）
+function canRecall(opts) {
+  return !!me && opts.uid === me.id && !opts.recalled && (Date.now() / 1000 - opts.time) <= 120;
+}
+
+async function recallMessage(o) {
+  const key = chatKey();
+  const ok = await askConfirm('确定撤回这条消息吗？撤回后所有人都将看不到它的内容。', '撤回');
+  if (!ok) return;
+  try {
+    await api('/api/recall', 'POST', { scope: scopeOfKey(key), id: o.id });
+    applyRecalled(key, [o.id]);
+    if (pendingQuote && pendingQuote.chat === key && pendingQuote.id === o.id) setQuote(null);
+    toast('已撤回');
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+// 聊天标题右侧的三个点菜单：私聊（加入 / 移出黑名单）；大群与小群（成员列表）；小群另有群主操作或退出
+function openChatMenu(e) {
+  e.stopPropagation();
+  hideMsgMenu();
+  hideMentions();
+  const items = [];
+  if (chatMode.type === 'private') {
+    const u = userById(chatMode.user);
+    items.push(['block', u && u.blocked ? '移出黑名单' : '加入黑名单']);
+  } else if (chatMode.type === 'group') {
+    items.push(['members', '成员列表']);
+  } else if (chatMode.type === 'small' && groupDetail && groupDetail.id === chatMode.id) {
+    items.push(['members', '成员列表']);
+    if (groupDetail.is_owner) items.push(['invite', '拉入用户'], ['rename', '重命名'], ['dissolve', '解散小群', 'danger']);
+    else items.push(['quit', '退出群聊']);
+  }
+  if (!items.length) return;
+  const menu = document.getElementById('chatMenu');
+  menu.innerHTML = '';
+  items.forEach(([act, label, cls]) => {
+    const d = document.createElement('div');
+    d.textContent = label;
+    if (cls) d.className = 'danger-item';
+    d.addEventListener('click', () => { hideChatMenu(); runChatAction(act); });
+    menu.appendChild(d);
+  });
+  menu.classList.remove('hidden');
+  const r = e.currentTarget.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  menu.style.left = Math.max(4, Math.min(r.right - w, window.innerWidth - w - 4)) + 'px';
+  menu.style.top = (r.bottom + 4) + 'px';
+}
+
+function hideChatMenu() {
+  const m = document.getElementById('chatMenu');
+  if (m) m.classList.add('hidden');
+}
+
+function runChatAction(act) {
+  if (chatMode.type === 'private') {
+    if (act === 'block') toggleBlock(chatMode.user);
+    return;
+  }
+  if (act === 'members') openMemberList();
+  else if (act === 'invite') openInvitePanel();
+  else if (act === 'quit') quitGroup();
+  else if (act === 'rename') openRenamePanel();
+  else if (act === 'dissolve') dissolveGroup();
+}
+
+async function toggleBlock(uid) {
+  const u = userById(uid);
+  if (!u) return;
+  const on = !u.blocked;
+  if (on) {
+    const ok = await askConfirm(`将 ${nameOf(uid)} 加入黑名单？加入后对方将无法再向你发送私聊消息。`, '加入黑名单');
+    if (!ok) return;
+  }
+  try {
+    await api('/api/blacklist', 'POST', { user_id: uid, blocked: on });
+    toast(on ? '已加入黑名单' : '已移出黑名单');
+    await loadUsers();
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+async function quitGroup() {
+  const gid = chatMode.id;
+  const listed = groups.find(x => x.id === gid);
+  const name = listed ? listed.name : '该群';
+  const ok = await askConfirm(`退出小群「${name}」？退出后将看不到该群的新消息，需群主重新拉入。`, '退出');
+  if (!ok) return;
+  try {
+    await api('/api/groups/leave', 'POST', { group_id: gid });
+    toast('已退出群聊');
+    openGroup();
+    await loadGroups();
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    ok ? resolve() : reject(new Error('复制失败'));
+  });
+}
+
+// HTML 内容用 iframe 显示（沙箱：允许脚本，不允许访问主页面）
+function htmlFrame(html, cls) {
+  const f = document.createElement('iframe');
+  f.className = cls;
+  f.setAttribute('sandbox', HTML_SANDBOX);
+  f.title = 'HTML 内容';
+  f.srcdoc = html;
+  return f;
+}
+
+function openHtmlModal(html) {
+  document.getElementById('htmlFrame').srcdoc = html;
+  document.getElementById('htmlModal').classList.remove('hidden');
+}
+
+function closeHtmlModal() {
+  document.getElementById('htmlModal').classList.add('hidden');
+  document.getElementById('htmlFrame').srcdoc = '';
+}
+
+// 删除账号：二次确认；历史消息保留
+async function deleteUser(id, name) {
+  if (!(await askConfirm(`确定删除用户「${name}」吗？`, '继续'))) return;
+  if (!(await askConfirm(`请再次确认：删除后「${name}」将无法登录，此操作不可撤销（历史消息会保留）。确定删除吗？`, '删除'))) return;
+  try {
+    await api('/api/admin/users/delete', 'POST', { user_id: id });
+    setMsg('adminUserMsg', `已删除用户「${name}」。`, true);
+    loadUsers();
+    showPage('admin');
+  } catch (err) { setMsg('adminUserMsg', err.message); }
+}
+
+(function bindChatExtras() {
+  document.getElementById('quoteCancel').addEventListener('click', () => setQuote(null));
+  document.getElementById('htmlBack').addEventListener('click', closeHtmlModal);
+  document.getElementById('chatBox').addEventListener('scroll', hideMsgMenu);
+  document.addEventListener('click', e => {
+    if (!e.target.closest || !e.target.closest('#msgMenu')) hideMsgMenu();
+    if (!e.target.closest || !e.target.closest('#chatMenu')) hideChatMenu();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!document.getElementById('htmlModal').classList.contains('hidden')) closeHtmlModal();
+    hideMsgMenu();
+    hideChatMenu();
+    if (isPanelOpen()) closePanel();
+  });
+})();
+
+// ---------- 第 5 轮：提示浮窗 / 确认框 / 拼音排序 / 用户概览与详情 ----------
+
+// 悬浮提示：从页面下方升起，停留约 2 秒后降下
+let toastTimer = null;
+function toast(text, ok = true) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.className = 'toast';
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.classList.toggle('err', !ok);
+  el.classList.remove('show');
+  void el.offsetWidth;   // 重新触发过渡动画
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// 持续显示的状态说明（不是悬浮提示）
+function setHint(id, text) {
+  const el = document.getElementById(id);
+  el.textContent = text || '';
+  el.classList.toggle('err', !!text);
+}
+
+// 页内确认框：代替 window.confirm（在沙箱 iframe 中 confirm 会被直接拒绝）
+function askConfirm(message, okText = '确定') {
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.className = 'confirm-mask';
+    mask.innerHTML = '<div class="confirm-box" role="dialog" aria-modal="true"><p></p>' +
+      '<div class="btns"><button class="secondary" data-act="no" type="button">取消</button>' +
+      '<button class="danger" data-act="yes" type="button"></button></div></div>';
+    mask.querySelector('p').textContent = message;
+    const yes = mask.querySelector('[data-act=yes]');
+    yes.textContent = okText;
+    const done = v => {
+      document.removeEventListener('keydown', onKey, true);
+      mask.remove();
+      resolve(v);
+    };
+    const onKey = e => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); }
+    };
+    mask.querySelector('[data-act=no]').addEventListener('click', () => done(false));
+    yes.addEventListener('click', () => done(true));
+    mask.addEventListener('click', e => { if (e.target === mask) done(false); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(mask);
+    yes.focus();
+  });
+}
+
+// 拼音排序：每个汉字取拼音首字母（以拼音顺序中的分界字确定），英文按字母，数字原样；
+// 先比较姓名第一个字符的首字母，相同再按完整拼音排序
+const PINYIN = new Intl.Collator('zh-Hans-u-co-pinyin', { numeric: true, sensitivity: 'base' });
+const PINYIN_INITIALS = ['阿a', '芭b', '擦c', '搭d', '蛾e', '发f', '噶g', '哈h', '击j', '喀k', '垃l', '妈m',
+  '拿n', '哦o', '爬p', '七q', '然r', '撒s', '塌t', '挖w', '昔x', '压y', '匝z'].map(t => [t[0], t[1]]);
+function hanInitial(ch) {
+  let letter = null;
+  for (const [b, l] of PINYIN_INITIALS) {
+    if (PINYIN.compare(ch, b) >= 0) letter = l; else break;
+  }
+  return letter || '~';
+}
+function firstKey(name) {
+  const ch = [...String(name)][0] || '';
+  if (/[\u4e00-\u9fff]/.test(ch)) return hanInitial(ch);
+  return ch.toLowerCase();
+}
+function nameCollate(a, b) {
+  const ka = firstKey(a), kb = firstKey(b);
+  if (ka !== kb) return ka < kb ? -1 : 1;
+  return PINYIN.compare(String(a), String(b));
+}
+
+let adminUsers = [];                 // 用户管理的用户列表（概览与详情共用）
+let userSort = { key: '', dir: 1 };  // 当前排序列与方向（1 升序，-1 降序）
+let detailUid = null;                // 用户详情子页面当前用户
+
+function roleRank(u) { return u.is_admin ? 0 : (u.sub_admin ? 1 : 2); }
+function statusRank(u) { return u.pending ? 0 : ((u.muted || u.big_muted) ? 2 : 1); }   // 待处理 → 正常 → 禁言
+
+function sortedUsers() {
+  const list = adminUsers.slice();
+  const d = userSort.dir;
+  const byName = (a, b) => nameCollate(a.username, b.username);
+  const cmp = {
+    username: byName,
+    alias: (a, b) => nameCollate(a.alias || '', b.alias || ''),
+    role: (a, b) => roleRank(a) - roleRank(b) || byName(a, b),
+    status: (a, b) => statusRank(a) - statusRank(b) || byName(a, b),
+    created: (a, b) => a.created_at - b.created_at || byName(a, b),
+  }[userSort.key];
+  if (cmp) list.sort((a, b) => d * cmp(a, b));
+  return list;
+}
+
+function roleHtml(u) {
+  return u.is_admin ? '<span class="tag staff">主管理员</span>'
+    : (u.sub_admin ? '<span class="tag staff">副管理员</span>' : '普通用户');
+}
+function statusHtml(u) {
+  return [
+    u.muted ? '<span class="tag muted">全局禁言</span>' : '',
+    u.big_muted ? '<span class="tag muted">大群禁言</span>' : '',
+    u.pending ? '<span class="tag pending">待处理</span>' : '',
+  ].join('') || '正常';
+}
+
+function renderUserOverview() {
+  const body = document.getElementById('userBody');
+  body.innerHTML = '';
+  document.querySelectorAll('#userHead th[data-key]').forEach(th => {
+    const on = th.dataset.key === userSort.key;
+    th.querySelector('.arrow').textContent = on ? (userSort.dir > 0 ? '▲' : '▼') : '';
+  });
+  if (!adminUsers.length) {
+    body.innerHTML = '<tr><td colspan="6" class="hint">暂无用户</td></tr>';
+    return;
+  }
+  sortedUsers().forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(u.username)}</td><td>${roleHtml(u)}</td><td>${statusHtml(u)}</td>` +
+      `<td>${fmtTime(u.created_at)}</td><td>${escapeHtml(u.alias || '')}</td>` +
+      '<td class="more-col"><button class="more" type="button" title="查看详情">⋯</button></td>';
+    tr.querySelector('.more').addEventListener('click', () => showUserDetail(u.id));
+    body.appendChild(tr);
+  });
+}
+
+// 用户详情子页面
+function showUserDetail(uid) {
+  detailUid = uid;
+  PAGES.forEach(p => document.getElementById('page' + cap(p)).classList.add('hidden'));
+  document.getElementById('pageUserdetail').classList.remove('hidden');
+  currentPage = 'userdetail';
+  renderUserDetail();
+}
+
+function renderUserDetail() {
+  const u = adminUsers.find(x => x.id === detailUid);
+  if (!u) { showPage('admin'); return; }
+  const locked = u.is_admin && !me.is_admin;   // 副管理员不能操作主管理员
+  document.getElementById('udTitle').textContent = '用户详情：' + u.username;
+  document.getElementById('udInfo').innerHTML =
+    `<div><span>用户名</span><span>${escapeHtml(u.username)}</span></div>` +
+    `<div><span>身份</span><span>${roleHtml(u)}</span></div>` +
+    `<div><span>状态</span><span>${statusHtml(u)}</span></div>` +
+    `<div><span>注册时间</span><span>${fmtTime(u.created_at)}</span></div>`;
+  const alias = document.getElementById('udAlias');
+  alias.value = u.alias || '';
+  alias.disabled = locked;
+  document.getElementById('udAliasSave').disabled = locked;
+  const gl = document.getElementById('udGroupLimit');
+  gl.value = u.group_limit;
+  gl.disabled = locked || u.is_admin;
+  document.getElementById('udGroupLimitSave').disabled = locked || u.is_admin;
+  const act = document.getElementById('udActions');
+  act.innerHTML = '';
+  if (locked || u.is_admin) {
+    act.innerHTML = '<span class="hint">主管理员账号不能在此操作。</span>';
+    document.getElementById('udGroupsField').classList.add('hidden');
+    return;
+  }
+  const bigBtn = document.createElement('button');
+  bigBtn.className = u.big_muted ? 'secondary' : 'danger';
+  bigBtn.type = 'button';
+  bigBtn.textContent = u.big_muted ? '解除大群禁言' : '大群禁言';
+  bigBtn.addEventListener('click', () => setBigMute(u.id, !u.big_muted));
+  act.appendChild(bigBtn);
+  const muteBtn = document.createElement('button');
+  muteBtn.className = u.muted ? 'secondary' : 'danger';
+  muteBtn.type = 'button';
+  muteBtn.textContent = u.muted ? '解除全局禁言' : '全局禁言';
+  muteBtn.addEventListener('click', () => setMute(u.id, !u.muted));
+  act.appendChild(muteBtn);
+  const subBtn = document.createElement('button');
+  subBtn.className = 'secondary';
+  subBtn.type = 'button';
+  subBtn.textContent = u.sub_admin ? '取消副管理员' : '设为副管理员';
+  subBtn.addEventListener('click', () => setSubAdmin(u.id, !u.sub_admin));
+  if (me.is_admin) act.appendChild(subBtn);   // 只有主管理员可以设置 / 取消副管理员
+  if (u.id !== me.id && me.is_admin) {   // 不能删除自己；只有主管理员可以删除账号
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger';
+    delBtn.type = 'button';
+    delBtn.textContent = '删除账号';
+    delBtn.addEventListener('click', () => deleteUser(u.id, u.username));
+    act.appendChild(delBtn);
+  }
+  loadUserGroups(u.id);
+}
+
+// 主管理员：查看用户创建的小群并可解散（无法查看群内消息）
+async function loadUserGroups(uid) {
+  const field = document.getElementById('udGroupsField');
+  const box = document.getElementById('udGroups');
+  if (!me || !me.is_admin) { field.classList.add('hidden'); return; }
+  field.classList.remove('hidden');
+  try {
+    const r = await api('/api/admin/user-groups?user_id=' + uid);
+    if (detailUid !== uid) return;
+    box.innerHTML = '';
+    if (!r.groups.length) { box.innerHTML = '<div class="hint">该用户没有创建小群。</div>'; return; }
+    r.groups.forEach(g => {
+      const row = document.createElement('div');
+      row.className = 'panel-row';
+      row.innerHTML = `<span>${escapeHtml(g.name)} <span class="hint">（${g.member_count} 人）</span></span><button class="danger small" type="button">解散</button>`;
+      row.querySelector('button').addEventListener('click', () => dissolveUserGroup(uid, g.id, g.name));
+      box.appendChild(row);
+    });
+  } catch (err) {
+    if (err.status === 401) leaveApp();
+    else box.innerHTML = '<div class="hint">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+async function dissolveUserGroup(uid, gid, name) {
+  const ok = await askConfirm(`解散小群「${name}」？解散后该群及全部消息将被删除，所有成员都将无法再看到。`, '解散');
+  if (!ok) return;
+  try {
+    await api('/api/admin/groups/dissolve', 'POST', { user_id: uid, group_id: gid });
+    toast('已解散小群「' + name + '」');
+    loadUserGroups(uid);
+  } catch (err) {
+    toast(err.message, false);
+  }
+}
+
+(function bindUserAdmin() {
+  document.querySelectorAll('#userHead th[data-key]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      userSort = userSort.key === key ? { key, dir: -userSort.dir } : { key, dir: 1 };
+      renderUserOverview();
+    });
+  });
+  document.getElementById('udBack').addEventListener('click', () => showPage('admin'));
+  document.getElementById('udAliasSave').addEventListener('click', () => {
+    setAlias(detailUid, document.getElementById('udAlias').value.trim());
+  });
+  document.getElementById('udGroupLimitSave').addEventListener('click', () => {
+    setGroupLimit(detailUid, document.getElementById('udGroupLimit').value.trim());
+  });
+})();
+
+// ---------- 事件绑定
+(function bindEvents() {
+  const input = document.getElementById('chatInput');
+  input.addEventListener('keydown', e => {
+    const popOpen = !document.getElementById('mentionPop').classList.contains('hidden') && mentionState.items.length;
+    if (popOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const n = mentionState.items.length;
+        mentionState.idx = (mentionState.idx + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+        renderMentionPop();
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mentionState.idx); return; }
+      if (e.key === 'Escape') { e.preventDefault(); hideMentions(); return; }
+    }
+    if (isExpanded()) {
+      if (e.key === 'Escape') { e.preventDefault(); collapseInput(); }
+      return; // 放大模式：Enter 默认换行，不发送
+    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  });
+  input.addEventListener('input', () => { autoResizeInput(); updateMentionPop(); });
+  input.addEventListener('click', updateMentionPop);
+  document.getElementById('expandBtn').addEventListener('click', toggleExpand);
+  document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+  document.getElementById('searchGo').addEventListener('click', runSearch);
+  document.getElementById('searchGlobal').addEventListener('change', () => {
+    updateSearchScopeUI();
+    if (document.getElementById('searchInput').value.trim()) runSearch();   // 切换范围后按新范围重新搜索
+  });
+  document.getElementById('searchClose').addEventListener('click', closeSearch);
+  document.getElementById('searchModal').addEventListener('click', e => { if (e.target.id === 'searchModal') closeSearch(); });
+  document.getElementById('hostDomainInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addHostDomain();
+  });
+})();
+
+// ---------- 启动：检查登录状态
+(async function init() {
+  try {
+    const r = await api('/api/me');
+    if (r.user) { me = r.user; enterApp(); }
+    else { showAuthTab('login'); document.getElementById('authView').classList.remove('hidden'); }
+  } catch (e) {
+    document.getElementById('authView').classList.remove('hidden');
+  }
+})();
+
+// ---------- 输入框放大模式 ----------
+function isExpanded() {
+  return document.getElementById('inputBar').classList.contains('expanded');
+}
+
+function setExpanded(on) {
+  const input = document.getElementById('chatInput');
+  if (on && input.disabled) return;
+  const bar = document.getElementById('inputBar');
+  const btn = document.getElementById('expandBtn');
+  bar.classList.toggle('expanded', on);
+  btn.textContent = on ? '\u2198' : '\u2922';
+  btn.title = on ? '收起输入框（Esc）' : '放大输入框';
+  autoResizeInput();
+  if (on) input.focus();
+}
+
+function toggleExpand() { setExpanded(!isExpanded()); }
+function collapseInput() { if (isExpanded()) setExpanded(false); }
+
+</script>
+</body>
+</html>
