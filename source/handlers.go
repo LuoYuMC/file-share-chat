@@ -122,12 +122,13 @@ func (a *server) servePage(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "不支持的请求方法"})
 		return
 	}
+	page := renderPage()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Length", strconv.Itoa(len(indexHTML)))
+	w.Header().Set("Content-Length", strconv.Itoa(len(page)))
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
-		_, _ = w.Write(indexHTML)
+		_, _ = w.Write(page)
 	}
 }
 

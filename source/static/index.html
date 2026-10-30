@@ -35,6 +35,7 @@ textarea.wide { width: 100%; min-height: 80px; resize: vertical; }
 .msg.err { color: #dc2626; }
 .msg.ok { color: #15803d; }
 .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; line-height: 1.6; }
+.app-version { text-align: center; color: #9ca3af; font-size: 12px; margin: 24px 0 4px; }
 .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); padding: 16px; margin-bottom: var(--gap); }
 h2 { font-size: 16px; margin: 0 0 var(--gap); }
 h2.sub { margin-top: 20px; }
@@ -416,6 +417,7 @@ table.users .more:hover { background: #d1d5db; }
       </div>
       <div class="msg" id="adminUserMsg"></div>
     </div>
+    <div class="app-version">{{APP_VERSION}}</div>
   </section>
 
   <section id="pageUserdetail" class="page center hidden">

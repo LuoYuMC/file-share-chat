@@ -202,7 +202,7 @@ func restoreHosts(cfg *config, p pathSet) error {
 
 func printBanner(port int, filesDir, hostsPath string) {
 	fmt.Println("==============================================================")
-	fmt.Println(" 文件分享 + 聊天 已启动")
+	fmt.Printf(" 文件分享 + 聊天 %s 已启动\n", appVersion)
 	fmt.Printf(" 聊天与文件：%s（本机访问）\n", siteURL("localhost", port))
 	fmt.Printf(" 文件目录：%s\n", filesDir)
 	fmt.Printf(" hosts   ：%s\n", hostsPath)
