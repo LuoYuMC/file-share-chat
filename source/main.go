@@ -144,7 +144,7 @@ func run(cfg *config) error {
 	setupFirewall(cfg.noticePort)
 
 	fmt.Println("==============================================================")
-	fmt.Println(" 文件分享 + 聊天 已启动")
+	fmt.Printf(" 文件分享 + 聊天 %s 已启动\n", appVersion)
 	fmt.Printf(" 聊天与文件：%s（本机访问）\n", siteURL("localhost", cfg.port))
 	fmt.Printf(" 提示页    ：%s（局域网或域名访问 80 端口时显示，可在此前往聊天）\n", siteURL("域名", cfg.noticePort))
 	fmt.Printf(" 文件目录：%s\n", p.files)
